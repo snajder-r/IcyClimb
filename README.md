@@ -4,6 +4,16 @@ This mini-game is my first practice VR project.
 
 ## Development log
 
+### Collision
+* Using a Character Controller for player collision with floor and meshes, combined with the XR Character controller driver.
+It's acting a bit weird, though, and climbs up on meshes. I haven't found a decent solution yet, other than to make the collider narrow enough that the curvature of the capsule is steep.
+It's also important to make sure the Player Controller collider interacts only with walls and floor and nothing else, otherwise it can glitch out.
+* I wrote a shader to blindfold the player if they try to push their had through a wall. Unfortunately it seems to me Camera Overlay UI canvasas don't support transparency, which forces me to use World Space UI. 
+When this clips with meshes it sometimes makes it so that the player can see through meshes still, or see the edge of meshes. Something to fix...
+I wrote a script "NoWallhack" which detects collision between the Camera's near clipping plane and blacks out the screen if it clips with a wall. 
+It also takes into account the direction of the collision, using Physics.ComputePenetration to estimate where the collision occurs and how deep in we are.
+The shader takes these as input and adjusts the blindfold accordingly. Thus, if I step into the wall with my right side, I can still see on the left side.
+
 ### Ambiance
 * Added some ocean sound affects at the bottom and wind sound affects at the top, turned on spatial blend and added ONSP Audio source from the native oculus spatializer. 
 Thus, the higher you climb, the more you get wind sounds and less ocean sounds.

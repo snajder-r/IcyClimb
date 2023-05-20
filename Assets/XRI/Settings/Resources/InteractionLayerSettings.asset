@@ -15,11 +15,11 @@ MonoBehaviour:
   m_LayerNames:
   - Default
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Rope
+  - Anchor
+  - Resupply
+  - PickRight
+  - PickLeft
   - 
   - 
   - 
