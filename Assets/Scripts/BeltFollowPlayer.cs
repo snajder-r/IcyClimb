@@ -28,7 +28,6 @@ public class BeltFollowPlayer : MonoBehaviour
     public void Start()
     {
         m_BeltOffset = transform.position - mainCamera.position;
-        Debug.Log(mainCamera.position);
     }
 
     public void Update()
