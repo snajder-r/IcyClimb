@@ -4,10 +4,11 @@ using UnityEngine;
 
 public class Cliff : MonoBehaviour
 {
-    // Start is called before the first frame update
+    private Collider cliffCollider;
+
     void Start()
     {
-        
+        cliffCollider = GetComponent<Collider>();
     }
 
     // Update is called once per frame
@@ -21,7 +22,7 @@ public class Cliff : MonoBehaviour
     {
         if (other.CompareTag("IcePickTip"))
         {
-            other.GetComponent<IcePickTip>().OnWallCollisionEnter();
+            other.GetComponent<IcePickTip>().OnWallCollisionEnter(cliffCollider);
         }
     }
 }

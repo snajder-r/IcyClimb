@@ -12,6 +12,11 @@ The following content is used in this project:
 
 ## Development log
 
+### Locomotion
+
+* When the IcePick hits the wall, I freeze the IcePick's RigidBody. I then compute for each IcePick the distance between the Attach point and the controller location. This is the "pull" exacted on the body. I then pull the body towards the picks. If both picks are lodged in the wall, I take the average pull.
+* In order to make the pull smoother and feel like an effort, the pull is then normalized and multiplied with a fixed pull speed.
+
 ### Collision
 * Using a Character Controller for player collision with floor and meshes, combined with the XR Character controller driver.
 It's acting a bit weird, though, and climbs up on meshes. I haven't found a decent solution yet, other than to make the collider narrow enough that the curvature of the capsule is steep.
@@ -21,10 +26,19 @@ When this clips with meshes it sometimes makes it so that the player can see thr
 I wrote a script "NoWallhack" which detects collision between the Camera's near clipping plane and blacks out the screen if it clips with a wall. 
 It also takes into account the direction of the collision, using Physics.ComputePenetration to estimate where the collision occurs and how deep in we are.
 The shader takes these as input and adjusts the blindfold accordingly. Thus, if I step into the wall with my right side, I can still see on the left side.
+* The IcePick contains a trigger collider at the tip. This is so that the collision is allowed to partially penetrate the ice. When the wall gets triggered, it calls a listener on the IcePick.
+The IcePick then freezes its own rigidbody so it gets "stuck" which then allows locomotion. If the player presses the trigger, they can free the IcePick.
+  * A complication I am facing here is when I should consider the collision to occur. I tried to make it based on velocity, but I'm facing the problem that sometimes even fast movements seem to result in low velocity at the time the trigger is called. 
+    Vice versa I have the problem that sometimes "grinding" the pick against the wall results in fast involuntary collision which is then accepted as a hit but shouldn't. 
+	I tried also checking the angle of the motion, using the RigidBodys GetPointVelocity function and by computing its dot product with the Ice Pick tip's position. It didn't help, though.. Not sure how to improve it so that it registers if and only if the player inteded it.
+  * I attempted two things to fix it, which improved it somewhat, but not greatly: 
+    One is smoothing the velocity over the last 10 frames before computing the direction of movement. 
+	The other is sending a raycast from the IcePickTip to the wall and checking the wall normal. If it deviates more than 45 degrees from the Tip forward we don't register the hit. 
 
 ### Ambiance
 * Added some ocean sound affects at the bottom and wind sound affects at the top, turned on spatial blend and added ONSP Audio source from the native oculus spatializer. 
 Thus, the higher you climb, the more you get wind sounds and less ocean sounds.
+* When you reach a certain height (currently 80 meters) a song from Scott Buckley starts playing. It only plays once and doesn't loop. This is of course inspired by the Kojima Productions game Death Stranding :-)
 
 ### Cliff design
 
