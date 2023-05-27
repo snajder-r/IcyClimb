@@ -7,35 +7,42 @@ public class IcePick : XRGrabInteractable
 {
     [Header("Ice Pick")]
     [SerializeField] private XRSocketInteractor holster;
+    [SerializeField] private AudioClip[] handSlipSound;
 
     /// <summary>
     /// Whether the Ice pick is currently lodged into ice.
     /// </summary>
-    public bool lodged { get; private set;}
+    public bool isLodged { get; private set;}
     public Rigidbody rigidBody { get; private set; }
 
-    private XRBaseController m_HeldController;
-    private IcePickTip m_Tip;
- 
+    private XRBaseController heldController;
+    private IcePickTip tip;
+    private bool grabDisabled = false;
+
     /// <summary>
     /// The pull the axe currently exacts on the player. 
     /// </summary>
     public Vector3 PullPlayer
     {
         get {
-            if (!(lodged && isSelected))
+            if (!(isLodged && isSelected))
             {
                 // Only pull the player if the ice pick is lodged in ice and held by the player
                 return Vector3.zero;
             }
-            return attachTransform.position - m_HeldController.transform.position;
+            return attachTransform.position - heldController.transform.position;
         }
+    }
+
+    public override bool IsSelectableBy(IXRSelectInteractor interactor)
+    {
+        return !grabDisabled && base.IsSelectableBy(interactor);
     }
 
     void Start()
     {
         rigidBody = GetComponent<Rigidbody>();
-        m_Tip = GetComponentInChildren<IcePickTip>();
+        tip = GetComponentInChildren<IcePickTip>();
     }
 
     public void Lodge()
@@ -44,13 +51,13 @@ public class IcePick : XRGrabInteractable
         rigidBody.constraints = RigidbodyConstraints.FreezeAll;
 
         // Play haptics
-        if (m_HeldController)
+        if (heldController)
         {
-            m_HeldController.SendHapticImpulse(1f, 0.25f);
+            heldController.SendHapticImpulse(1f, 0.25f);
         }
 
         // Record that it's lodged
-        lodged = true;
+        isLodged = true;
 
         // Fire listeners
         PlayerController.instance.OnPickLodged(this);
@@ -58,7 +65,7 @@ public class IcePick : XRGrabInteractable
 
     public void Dislodge()
     {
-        if (!lodged)
+        if (!isLodged)
         {
             return;
         }
@@ -67,16 +74,45 @@ public class IcePick : XRGrabInteractable
         rigidBody.constraints = RigidbodyConstraints.None;
 
         // Play haptics
-        if (m_HeldController)
+        if (heldController)
         {
-            m_HeldController.SendHapticImpulse(0.1f, 0.1f);
+            heldController.SendHapticImpulse(0.1f, 0.1f);
         }
 
-        lodged = false;
+        isLodged = false;
 
         // Fire listeners
-        m_Tip.OnDislodge();
+        tip.OnDislodge();
         PlayerController.instance.OnPickDislodged(this);
+    }
+
+    public void SendHapticImpulse(float intensity, float duration)
+    {
+        if (heldController) {
+            heldController.SendHapticImpulse(intensity, duration);
+        }
+    }
+
+    public void LoseGrip()
+    {
+        grabDisabled = true;
+        if (heldController)
+        {
+            AudioSource audio = heldController.gameObject.GetComponent<AudioSource>();
+            if (audio)
+            {
+                int index = Random.Range(0, handSlipSound.Length);
+                audio.PlayOneShot(handSlipSound[index], 0.5f);
+            }
+        }
+        
+        // One second cooldown before we can grab again
+        Invoke("ReenableGrab", 1f);
+    }
+
+    public void ReenableGrab()
+    {
+        grabDisabled = false;
     }
 
     private void GoBackToHolster()
@@ -98,7 +134,7 @@ public class IcePick : XRGrabInteractable
         if (args.interactorObject is XRBaseControllerInteractor)
         {
             // If it was deselected from hand (not from the holster)
-            m_HeldController = null;
+            heldController = null;
             Invoke("GoBackToHolster", 3f);
         }
     }
@@ -110,8 +146,8 @@ public class IcePick : XRGrabInteractable
         // Store which controller holds it, in order to use haptics
         if (args.interactorObject is XRBaseControllerInteractor)
         {
-            m_HeldController = ((XRBaseControllerInteractor)args.interactorObject).xrController;
-            m_HeldController.SendHapticImpulse(0.5f, 0.1f);
+            heldController = ((XRBaseControllerInteractor)args.interactorObject).xrController;
+            heldController.SendHapticImpulse(0.5f, 0.1f);
         }
     }
 

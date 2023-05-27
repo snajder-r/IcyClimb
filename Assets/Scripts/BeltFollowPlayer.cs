@@ -8,11 +8,13 @@ public class BeltFollowPlayer : MonoBehaviour
     [SerializeField] private Transform mainCamera;
     [SerializeField] private Transform leftHand;
     [SerializeField] private Transform rightHand;
+    [SerializeField] private float minHeight = 0.5f;
 
     [Header("Sensitivity")]
     [SerializeField] private float minHeadMovement = 0.1f;
     [Tooltip("Minimum head rotation in degrees")]
     [SerializeField] private float minHeadRotation = 30f;
+    
 
     [Header("Speed")]
     [SerializeField] private float rotationDegreesPerSecond = 90f;
@@ -65,7 +67,13 @@ public class BeltFollowPlayer : MonoBehaviour
         get
         {
             Vector3 currentOffset = transform.position - mainCamera.transform.position;
-            return m_BeltOffset - currentOffset;
+            Vector3 movement = m_BeltOffset - currentOffset;
+            // make sure the belt doesnt go into the floor
+            if(mainCamera.transform.position.y < minHeight)
+            {
+                movement.y = minHeight - transform.position.y;
+            }
+            return movement;
         }
     }
 

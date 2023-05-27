@@ -7,8 +7,8 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] private IcePick leftPick;
     [SerializeField] private IcePick rightPick;
-    [SerializeField] private float staminaLeft;
-    [SerializeField] private float staminaRight;
+    [SerializeField] private float startStamina;
+    [SerializeField] private float staminaRegeneration;
     [SerializeField] private float pullSpeed;
     [Tooltip("Pulling will slow down to zero as the distance from the hand to the PlayerController object reaches this distance (note that this may be the hand-to-feet distance)")]
     [SerializeField] private float maxHandDistance = 2.5f;
@@ -30,22 +30,30 @@ public class PlayerController : MonoBehaviour
     private int m_NumPicksLodged = 0;
     private int floorLayerMask;
 
+    private float staminaLeft;
+    private float staminaRight;
+
     // Raycastings used to determine whether we should fall
     private Vector3[] fallRays;
     private float fallVelocity;
+    private float maxFallDistance;
     private float recentMovement = 0f;
     private Vector3 lastPosition;
 
+    private List<WallAnchor> securedWallAnchors;
+
     void Start()
     {
-        // Singleton pattern
-        if(instance == null)
-        {
-            instance = this;
-        }
+        // Singleton pattern ...  sort of (doesn't assure that there is only one instance)
+        instance = this;
+
+        staminaLeft = startStamina;
+        staminaRight = startStamina;
 
         m_CharacterController = GetComponent<CharacterController>();
         lastPosition = transform.position;
+
+        securedWallAnchors = new List<WallAnchor>();
 
         SetUpFallRays();
     }
@@ -61,6 +69,12 @@ public class PlayerController : MonoBehaviour
         if(m_NumPicksLodged == 0) { 
             Fall();
         }
+
+        staminaLeft = UpdateStamina(leftPick, staminaLeft);
+        staminaRight = UpdateStamina(rightPick, staminaRight);
+
+        ProcessStamina(leftPick, staminaLeft);
+        ProcessStamina(rightPick, staminaRight);
 
         PlayFootsteps();
     }
@@ -134,9 +148,13 @@ public class PlayerController : MonoBehaviour
             //We're falling!
 
             //If this is the start of a fall and we are grounded (i.e. we are on slippery ground) play a sound
-            if(fallVelocity == 0f) { 
-                int sound_index = Random.Range(0, slippingSound.Length);
-                feetAudio.PlayOneShot(slippingSound[sound_index]);
+            if(fallVelocity == 0f) {
+                IntializeFall();
+                if(maxFallDistance < 0.1f)
+                {
+                    //We are secure int he rope
+                    return;
+                }
             }
 
             //velocity increases as you fall. This is a cheap approximation of increasing velocity that doesn't
@@ -153,10 +171,43 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        if(fallVelocity != 0f) { 
-            m_CharacterController.Move(floorNormal.normalized * fallVelocity * Time.deltaTime);
+        Vector3 fallVector = fallVelocity * floorNormal.normalized * Time.deltaTime;
+        float fallDistance = fallVector.magnitude;
+        fallDistance = Mathf.Clamp(fallDistance, 0, maxFallDistance);
+        maxFallDistance -= fallDistance;
+        m_CharacterController.Move(fallVector.normalized * fallDistance);
+
+        if (maxFallDistance == 0f)
+        {
+            //End fall
+            fallVelocity = 0f;
         }
     }
+
+    void IntializeFall()
+    {
+
+        if(securedWallAnchors.Count > 0)
+        {
+            WallAnchor lastAnchor = securedWallAnchors[securedWallAnchors.Count - 1];
+            // Calculate rope length for the fall
+            maxFallDistance = (lastAnchor.transform.position - transform.position).magnitude;
+            maxFallDistance -= lastAnchor.transform.position.y - transform.position.y;
+        }
+        else
+        {
+            maxFallDistance = 1000f;
+        }
+
+        if (maxFallDistance == 0f) return;
+
+        if (m_CharacterController.isGrounded) { 
+            int sound_index = Random.Range(0, slippingSound.Length);
+            feetAudio.PlayOneShot(slippingSound[sound_index]);
+        }
+
+    }
+
 
     /***************************************************
     * PICK LOCOMOTION
@@ -190,7 +241,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     float StretchingPullSpeed(IcePick pick)
     {
-        if(!pick.lodged || !pick.isSelected)
+        if(!pick.isLodged || !pick.isSelected)
         {
             return 0f;
         }
@@ -211,5 +262,50 @@ public class PlayerController : MonoBehaviour
         Vector3 pull = leftPull + rightPull;
 
         m_CharacterController.Move(pull * Time.deltaTime * pullSpeed);
+    }
+
+    float UpdateStamina(IcePick pick, float currentStamina)
+    {
+        Vector3 pull = pick.PullPlayer;
+
+        if (pick.isSelected && pick.isLodged)
+        {
+            // Drop stamina relative to how strongly we pull on it
+            currentStamina -= pull.magnitude * Time.deltaTime;
+            // Some base drain even if we hold perfectly still
+            currentStamina -= 0.05f * Time.deltaTime;
+        }
+        else
+        {
+            // Regenerate stamina if we are not holding on to a pick
+            currentStamina += staminaRegeneration * Time.deltaTime;
+        }
+        currentStamina = Mathf.Clamp(currentStamina, 0, startStamina);
+        
+        return currentStamina;
+    }
+
+    /// <summary>
+    /// Signal stamina to the user and even release the ice pick if stamina is empty
+    /// </summary>
+    void ProcessStamina(IcePick pick, float currentStamina)
+    {
+        float staminaRatio = currentStamina / startStamina;
+        if(staminaRatio < 0.25)
+        {
+            float vibration = 1f - staminaRatio * 4f;
+            pick.SendHapticImpulse(vibration, 0.5f);
+        }
+        
+        if(currentStamina <= 0f)
+        {
+            pick.LoseGrip();
+            pick.Dislodge();
+        }
+    }
+
+    public void WallAnchorSecured(WallAnchor anchor)
+    {
+        securedWallAnchors.Add(anchor);
     }
 }

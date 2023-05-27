@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Ice
   - IcePickTip
+  - WallAnchor
   layers:
   - Default
   - TransparentFX
