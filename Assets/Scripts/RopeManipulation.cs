@@ -17,6 +17,13 @@ public class RopeManipulation : XRGrabInteractable
 
     private ChainLink closestPredecessorLink;
 
+    public Vector3 PullPlayer { get; private set; }
+
+    /// <summary>
+    /// When the rope is grabbed, this stores the world coordinates where the grab occurred
+    /// </summary>
+    private Vector3 grabCoordinates;
+
     private void Start()
     {
         // We only need this when we are activated
@@ -26,10 +33,10 @@ public class RopeManipulation : XRGrabInteractable
 
     void Update()
     {
+        PullPlayer = Vector3.zero;
         if (isSelected)
         {
-            // Move the chain link I created to me
-            manipulatorChainLink.GetComponent<Rigidbody>().MovePosition(transform.position);
+            UpdateGrabbedMovement();
         }
         else { 
             // Move myself along the rope as close to the hand as possible.
@@ -37,6 +44,27 @@ public class RopeManipulation : XRGrabInteractable
             transform.position = closestPoint;
         }
     }
+
+    void UpdateGrabbedMovement()
+    {
+        // Direction of rope pull relative to where we grabbed the rope
+        Vector3 ropePullDirection = (transform.position - grabCoordinates);
+
+        // Direction in which the pull would pull the player towards the rope, rather then the rope away from the player
+        Vector3 toPlayerDirection = PlayerController.instance.CenterOfGravity.position - grabCoordinates;
+
+        if(Vector3.Dot(ropePullDirection, toPlayerDirection) <= 0)
+        {
+            // We are pulling the rope away from us
+            manipulatorChainLink.GetComponent<Rigidbody>().MovePosition(transform.position);
+        }
+        else
+        {
+            // We are pulling the player towards the rope
+            PullPlayer = -ropePullDirection;
+        }
+    }
+
     public override bool IsSelectableBy(IXRSelectInteractor interactor)
     {
         return !grabDisabled && base.IsSelectableBy(interactor);
@@ -82,6 +110,7 @@ public class RopeManipulation : XRGrabInteractable
 
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
+        grabCoordinates = manipulatorChainLink.transform.position;
         manipulatorChainLink.gameObject.SetActive(true);
         // Attach our manipulator link between the two closest links
         manipulatorChainLink.nextLink = closestPredecessorLink.nextLink;

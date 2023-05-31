@@ -3,21 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 
-public class IcePick : XRGrabInteractable
+public class IcePick : LodgeAbleGrabbable
 {
     [Header("Ice Pick")]
-    [SerializeField] private XRSocketInteractor holster;
+    
     [SerializeField] private AudioClip[] handSlipSound;
-
-    /// <summary>
-    /// Whether the Ice pick is currently lodged into ice.
-    /// </summary>
-    public bool isLodged { get; private set;}
-    public Rigidbody rigidBody { get; private set; }
-
-    private XRBaseController heldController;
+    
     private IcePickTip tip;
-    private bool grabDisabled = false;
 
     /// <summary>
     /// The pull the axe currently exacts on the player. 
@@ -34,68 +26,16 @@ public class IcePick : XRGrabInteractable
         }
     }
 
-    public override bool IsSelectableBy(IXRSelectInteractor interactor)
-    {
-        return !grabDisabled && base.IsSelectableBy(interactor);
-    }
 
     void Start()
     {
-        rigidBody = GetComponent<Rigidbody>();
         tip = GetComponentInChildren<IcePickTip>();
-    }
-
-    public void Lodge()
-    {
-        // First, freeze the pick in its position.
-        rigidBody.constraints = RigidbodyConstraints.FreezeAll;
-
-        // Play haptics
-        if (heldController)
-        {
-            heldController.SendHapticImpulse(1f, 0.25f);
-        }
-
-        // Record that it's lodged
-        isLodged = true;
-
-        // Fire listeners
-        PlayerController.instance.OnPickLodged(this);
-    }
-
-    public void Dislodge()
-    {
-        if (!isLodged)
-        {
-            return;
-        }
-
-        // Unfreeze the pick from its position.
-        rigidBody.constraints = RigidbodyConstraints.None;
-
-        // Play haptics
-        if (heldController)
-        {
-            heldController.SendHapticImpulse(0.1f, 0.1f);
-        }
-
-        isLodged = false;
-
-        // Fire listeners
-        tip.OnDislodge();
-        PlayerController.instance.OnPickDislodged(this);
-    }
-
-    public void SendHapticImpulse(float intensity, float duration)
-    {
-        if (heldController) {
-            heldController.SendHapticImpulse(intensity, duration);
-        }
+        remainsLodgedIfReleased = false;
     }
 
     public void LoseGrip()
     {
-        grabDisabled = true;
+        ForceRelease();
         if (heldController)
         {
             AudioSource audio = heldController.gameObject.GetComponent<AudioSource>();
@@ -105,55 +45,23 @@ public class IcePick : XRGrabInteractable
                 audio.PlayOneShot(handSlipSound[index], 0.5f);
             }
         }
-        
-        // One second cooldown before we can grab again
-        Invoke("ReenableGrab", 1f);
     }
 
-    public void ReenableGrab()
+
+    public override void Lodge()
     {
-        grabDisabled = false;
+        base.Lodge();
+
+        // Fire listeners
+        PlayerController.instance.OnPickLodged(this);
     }
 
-    private void GoBackToHolster()
+    public override void Dislodge()
     {
-        if (this.isSelected)
-        {
-            //Don't return to holster if the player re-established the grip
-            return;
-        }
+        base.Dislodge();
 
-        Dislodge();
-        holster.StartManualInteraction((IXRSelectInteractable) this);
-    }
-
-    protected override void OnSelectExited(SelectExitEventArgs args)
-    {
-        base.OnSelectExited(args);
-
-        if (args.interactorObject is XRBaseControllerInteractor)
-        {
-            // If it was deselected from hand (not from the holster)
-            heldController = null;
-            Invoke("GoBackToHolster", 3f);
-        }
-    }
-
-    protected override void OnSelectEntered(SelectEnterEventArgs args)
-    {
-        base.OnSelectEntered(args);
-
-        // Store which controller holds it, in order to use haptics
-        if (args.interactorObject is XRBaseControllerInteractor)
-        {
-            heldController = ((XRBaseControllerInteractor)args.interactorObject).xrController;
-            heldController.SendHapticImpulse(0.5f, 0.1f);
-        }
-    }
-
-    protected override void OnActivated(ActivateEventArgs args)
-    {
-        base.OnActivated(args);
-        Dislodge();
+        // Fire listeners
+        tip.OnDislodge();
+        PlayerController.instance.OnPickDislodged(this);
     }
 }

@@ -3,37 +3,29 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 
-public class WallAnchor : XRGrabInteractable
+public class WallAnchor : LodgeAbleGrabbable
 {
     [SerializeField] Transform ropeAttachPoint;
 
+    [SerializeField] protected XRSocketInteractor[] returnToHolsterList;
+
     private ChainLink link;
-
-    private Rigidbody myRigidBody;
-
-    private bool isAttachedToWall = false;
 
     void Start()
     {
-        myRigidBody = GetComponent<Rigidbody>();
-    }
-
-
-    void Update()
-    {
-        
+        remainsLodgedIfReleased = true;
     }
 
     public void OnWallCollisionEnter(Collider cliff)
     {
-        myRigidBody.isKinematic = true;
-        isAttachedToWall = true;
+        Lodge();
     }
+
 
     public void OnTriggerEnter(Collider other)
     {
         // Only do something if we are in a wall
-        if (!isAttachedToWall) return;
+        if (!isLodged) return;
 
         // If we already have a link attached, ignore the trigger
         if (link) return;
@@ -70,5 +62,18 @@ public class WallAnchor : XRGrabInteractable
         PlayerController.instance.WallAnchorSecured(this);
     }
 
-    
+    protected override void GoBackToHolster()
+    {
+        foreach(XRSocketInteractor holster in returnToHolsterList)
+        {
+            if (holster.interactablesSelected.Count == 0)
+            {
+                returnToHolster = holster;
+                base.GoBackToHolster();
+                return;
+            }
+        }
+    }
+
+
 }

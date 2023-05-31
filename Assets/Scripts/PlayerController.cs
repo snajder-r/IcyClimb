@@ -7,6 +7,8 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] private IcePick leftPick;
     [SerializeField] private IcePick rightPick;
+    [SerializeField] private RopeManipulation leftRope;
+    [SerializeField] private RopeManipulation rightRope;
     [SerializeField] private float startStamina;
     [SerializeField] private float staminaRegeneration;
     [SerializeField] private float pullSpeed;
@@ -17,13 +19,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float fallSpeed = 10f;
     [SerializeField] private AudioClip[] slippingSound;
     [SerializeField] private AudioClip[] footstepSound;
+    [SerializeField] private FallDummy fallDummy;
 
     [Tooltip("This is where sounds like falling sounds will play")]
     [SerializeField] private AudioSource feetAudio;
 
     [SerializeField] private ActionBasedContinuousMoveProvider moveProvider;
 
-    private CharacterController m_CharacterController;
+    private CharacterController characterController;
 
     public static PlayerController instance {get; private set;}
 
@@ -40,7 +43,11 @@ public class PlayerController : MonoBehaviour
     private float recentMovement = 0f;
     private Vector3 lastPosition;
 
+    private Vector3 pullLocomotionVelocity;
+
     private List<WallAnchor> securedWallAnchors;
+
+    public Transform CenterOfGravity { get;  private set; }
 
     void Start()
     {
@@ -50,10 +57,12 @@ public class PlayerController : MonoBehaviour
         staminaLeft = startStamina;
         staminaRight = startStamina;
 
-        m_CharacterController = GetComponent<CharacterController>();
+        characterController = GetComponent<CharacterController>();
         lastPosition = transform.position;
 
         securedWallAnchors = new List<WallAnchor>();
+        
+        CenterOfGravity = GetComponentInChildren<BeltFollowPlayer>().transform;
 
         SetUpFallRays();
     }
@@ -61,12 +70,27 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (!fallDummy.IsFalling)
+        {
+            //Make sure we right ourselfes
+            SelfRight();
+        }
+
+        pullLocomotionVelocity = Vector3.zero;
         if (m_NumPicksLodged > 0)
         {
             UpdatePickMovement();
         }
 
-        if(m_NumPicksLodged == 0) { 
+        UpdateRopeMovement();
+
+
+        if(pullLocomotionVelocity.magnitude > 0f)
+        {
+            fallDummy.StopFalling();
+            characterController.Move(pullLocomotionVelocity);
+        }
+        else if(m_NumPicksLodged == 0){
             Fall();
         }
 
@@ -79,9 +103,15 @@ public class PlayerController : MonoBehaviour
         PlayFootsteps();
     }
 
+    void SelfRight()
+    {
+        Vector3 euler = transform.eulerAngles;
+        transform.eulerAngles = new Vector3(0f, euler.y, 0f);
+    }
+
     void PlayFootsteps()
     {
-        if (m_CharacterController.isGrounded && (m_NumPicksLodged == 0))
+        if (characterController.isGrounded && (m_NumPicksLodged == 0))
         {
             recentMovement += (transform.position - lastPosition).magnitude;
             if (recentMovement > 0.5f)
@@ -126,7 +156,7 @@ public class PlayerController : MonoBehaviour
         {
             RaycastHit hit;
             Vector3 normal = -Vector3.up;
-            if (Physics.Raycast(transform.position + Vector3.up*0.1f , offset, out hit, 0.2f, floorLayerMask))
+            if (Physics.Raycast(transform.position + Vector3.up*0.1f, offset, out hit, 0.4f, floorLayerMask))
             {
                 normal = hit.normal;
             }
@@ -139,73 +169,54 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Determine whether the player stands on uneven ground (or no ground at all) and make them fall if they are.
     /// </summary>
-    void Fall()
+    bool ShouldWeFall()
     {
         Vector3 floorNormal = ScanFallRays();
         float floorAngle = Vector3.Dot(floorNormal, Vector3.up);
-        if (Mathf.Acos(floorAngle) * Mathf.Rad2Deg > floorAngleSlipping)
-        {
-            //We're falling!
+        return Mathf.Acos(floorAngle) * Mathf.Rad2Deg > floorAngleSlipping;
+    }
 
-            //If this is the start of a fall and we are grounded (i.e. we are on slippery ground) play a sound
-            if(fallVelocity == 0f) {
-                IntializeFall();
-                if(maxFallDistance < 0.1f)
-                {
-                    //We are secure int he rope
-                    return;
-                }
-            }
-
-            //velocity increases as you fall. This is a cheap approximation of increasing velocity that doesn't
-            //take into account drag or torque
-            fallVelocity = fallVelocity + fallSpeed * Time.deltaTime;
-        }
-        else if(fallVelocity != 0f)
+    void Fall()
+    {
+        if (!fallDummy.IsFalling)
         {
-            // Don't immediately stop falling, allow to slide a little even if a single frame is stable
-            fallVelocity = fallVelocity * 0.5f;
-            if(fallVelocity < 0.1f)
+            // If we are not yet falling, check if we should
+            if (ShouldWeFall())
             {
-                fallVelocity = 0f;
+                IntializeFall();
             }
         }
 
-        Vector3 fallVector = fallVelocity * floorNormal.normalized * Time.deltaTime;
-        float fallDistance = fallVector.magnitude;
-        fallDistance = Mathf.Clamp(fallDistance, 0, maxFallDistance);
-        maxFallDistance -= fallDistance;
-        m_CharacterController.Move(fallVector.normalized * fallDistance);
-
-        if (maxFallDistance == 0f)
+        if (fallDummy.IsFalling)
         {
-            //End fall
-            fallVelocity = 0f;
+            characterController.Move(fallDummy.GetMotion(transform.position));
+            this.transform.rotation = fallDummy.GetRotation();
+        
+            if(fallDummy.WindowedMeanMovement < 0.2f)
+            {
+                //fallDummy.StopFalling();
+            }
         }
     }
 
     void IntializeFall()
     {
-
         if(securedWallAnchors.Count > 0)
         {
             WallAnchor lastAnchor = securedWallAnchors[securedWallAnchors.Count - 1];
-            // Calculate rope length for the fall
-            maxFallDistance = (lastAnchor.transform.position - transform.position).magnitude;
-            maxFallDistance -= lastAnchor.transform.position.y - transform.position.y;
+            fallDummy.StartFalling(CenterOfGravity.position, transform.rotation, lastAnchor.transform.position);;
         }
         else
         {
-            maxFallDistance = 1000f;
+            fallDummy.StartFalling(CenterOfGravity.position, transform.rotation);
         }
 
-        if (maxFallDistance == 0f) return;
+        if (fallDummy.MaxFallDistance == 0f) return;
 
-        if (m_CharacterController.isGrounded) { 
+        if (characterController.isGrounded) { 
             int sound_index = Random.Range(0, slippingSound.Length);
             feetAudio.PlayOneShot(slippingSound[sound_index]);
         }
-
     }
 
 
@@ -221,6 +232,9 @@ public class PlayerController : MonoBehaviour
         {
             moveProvider.enabled = false;
         }
+
+        // Just in case we are currently falling 
+        fallDummy.StopFalling();
     }
 
     public void OnPickDislodged(IcePick pick)
@@ -231,6 +245,36 @@ public class PlayerController : MonoBehaviour
         {
             moveProvider.enabled = true;
         }
+    }
+
+    void UpdatePickMovement()
+    {
+        Vector3 leftPull = leftPick.PullPlayer;
+        Vector3 rightPull = rightPick.PullPlayer;
+
+        // Adjust pull for how far the arm is from the body
+        leftPull *= StretchingPullSpeed(leftPick);
+        rightPull *= StretchingPullSpeed(rightPick);
+
+        // This will pull in the mean direction, but using the pull power from both hands
+        Vector3 pull = leftPull + rightPull;
+
+        pullLocomotionVelocity += pull * Time.deltaTime * pullSpeed;
+    }
+
+    /***************************************************
+    * ROPE LOCOMOTION
+    ****************************************************/
+
+    void UpdateRopeMovement()
+    {
+        Vector3 leftPull = leftRope.PullPlayer;
+        Vector3 rightPull = rightRope.PullPlayer;
+
+        // This will pull in the mean direction, but using the pull power from both hands
+        Vector3 pull = leftPull + rightPull;
+
+        pullLocomotionVelocity += pull * Time.deltaTime * pullSpeed;
     }
 
 
@@ -249,20 +293,7 @@ public class PlayerController : MonoBehaviour
         float strainAdjustedSpeed = Mathf.Clamp(-Mathf.Log(distance/maxHandDistance), 0, 1);
         return strainAdjustedSpeed; 
     }
-    void UpdatePickMovement()
-    {
-        Vector3 leftPull = leftPick.PullPlayer;
-        Vector3 rightPull = rightPick.PullPlayer;
 
-        // Adjust pull for how far the arm is from the body
-        leftPull *= StretchingPullSpeed(leftPick);
-        rightPull *= StretchingPullSpeed(rightPick);
-
-        // This will pull in the mean direction, but using the pull power from both hands
-        Vector3 pull = leftPull + rightPull;
-
-        m_CharacterController.Move(pull * Time.deltaTime * pullSpeed);
-    }
 
     float UpdateStamina(IcePick pick, float currentStamina)
     {

@@ -43,14 +43,21 @@ public class NoWallhack : MonoBehaviour
 
     void Update()
     {
-        if(m_FullyPenetratedColliders.Count > 0)
+        bool isFullyPenetratingWall = m_FullyPenetratedColliders.Count > 0;
+        bool isCollidingWithWall = m_CurrentWallColliders.Count > 0;
+        if (isFullyPenetratingWall)
         {
             UpdateListOfFullyPenetratedColliders();
         }
 
-        if (m_CurrentWallColliders.Count > 0)
+        if (isCollidingWithWall)
         {
             AdjustBlindfoldVisibility();
+        }
+
+        if(!isFullyPenetratingWall && !isCollidingWithWall)
+        {
+            SetPenetrationDepth(0f, Vector2.zero);
         }
     }
 

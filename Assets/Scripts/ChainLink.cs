@@ -122,7 +122,7 @@ public class ChainLink : MonoBehaviour
 
         ChainLink other = otherCollider.GetComponent<ChainLink>();
         if (!other) return;
-        DestroyLoop(other);
+        //DestroyLoop(other);
     }
 
 
@@ -163,20 +163,21 @@ public class ChainLink : MonoBehaviour
             {
                 return false;
             }
-            if(current == other)
+            if (current.link.isKinematic)
             {
-                return true;
+                // We should not traverse kinematic links. They are fixed anchors
+                return false;
             }
-            if(traversed.Contains(current))
+            if (traversed.Contains(current))
             {
                 // There shouldn't be a loop, but who knows
                 return false;
             }
-            if (current.link.isKinematic)
+            if (current == other)
             {
-                // We should not traverse kinematic links. They are fixed anchors
-                return false; 
+                return true;
             }
+
             traversed.Add(current);
         }
     }

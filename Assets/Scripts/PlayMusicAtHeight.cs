@@ -5,7 +5,7 @@ using TMPro;
 
 public class PlayMusicAtHeight : MonoBehaviour
 {
-    [SerializeField] private TMP_Text creditText;
+    [SerializeField] private TMP_Text[] creditText;
     [SerializeField] private float creditFadeInTime = 5f;
     [SerializeField] private float holdCreditsSeconds = 5f;
 
@@ -23,9 +23,12 @@ public class PlayMusicAtHeight : MonoBehaviour
     {
         if (!audioSource) audioSource = GetComponent<AudioSource>();
 
-        Color textColor = creditText.color;
-        textColor.a = 0f;
-        creditText.color = textColor;
+        foreach(TMP_Text tmp in creditText)
+        {
+            Color textColor = tmp.color;
+            textColor.a = 0f;
+            tmp.color = textColor;
+        }  
     }
 
 
@@ -67,19 +70,23 @@ public class PlayMusicAtHeight : MonoBehaviour
 
     public void FadeCredit()
     {
-        Color textColor = creditText.color;
-        textColor.a += m_CreditsFading * Time.deltaTime;
-        creditText.color = textColor;
-        if(creditText.color.a >= 1f && m_CreditsFading > 0f)
+        foreach (TMP_Text tmp in creditText)
         {
-            m_CreditsFading = 0f;
-            //Schedule fading out credits
-            Invoke("StartCreditFadeout", holdCreditsSeconds);
+            Color textColor = tmp.color;
+            textColor.a += m_CreditsFading * Time.deltaTime;
+            tmp.color = textColor;
+            if (tmp.color.a >= 1f && m_CreditsFading > 0f)
+            {
+                m_CreditsFading = 0f;
+                //Schedule fading out credits
+                Invoke("StartCreditFadeout", holdCreditsSeconds);
+            }
+            if (tmp.color.a <= 0f && m_CreditsFading < 0f)
+            {
+                m_CreditsFading = 0f;
+            }
         }
-        if (creditText.color.a <= 0f && m_CreditsFading < 0f)
-        {
-            m_CreditsFading = 0f;
-        }
+
     }
 
     private void StartCreditFadeout()

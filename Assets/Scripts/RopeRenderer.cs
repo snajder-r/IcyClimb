@@ -14,11 +14,16 @@ public class RopeRenderer : MonoBehaviour
     void Start()
     {      
         trail = GetComponentInChildren<TrailRenderer>();
+
+        // This is to avoid that the renderer gets frustum culled. Making its bounds very large so it's always in the camera frustum!
+        trail.bounds = new Bounds(Vector3.zero, Vector3.one * 1000);
     }
 
     void Update()
     {
         RenderRope();
+
+        
     }
 
     void RenderRope()
