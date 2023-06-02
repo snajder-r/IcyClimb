@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 
-public class RopeManipulation : XRGrabInteractable
+public class RopeManipulation : DropablePully
 {
     [SerializeField] private ChainLink startLink;
     [SerializeField] private ChainLink endLink;
@@ -13,11 +13,17 @@ public class RopeManipulation : XRGrabInteractable
 
     [SerializeField] private XRBaseInteractor hand;
 
-    private bool grabDisabled = false;
-
     private ChainLink closestPredecessorLink;
 
-    public Vector3 PullPlayer { get; private set; }
+    Vector3 pull;
+    public override Vector3 GetPull() => pull;
+
+    // Holding a rope does not secure you against gravity
+    public override bool IsSecured() => false;
+
+    public override void OnOutOfStamina() {
+        ForceRelease(1f);
+    }
 
     /// <summary>
     /// When the rope is grabbed, this stores the world coordinates where the grab occurred
@@ -33,7 +39,7 @@ public class RopeManipulation : XRGrabInteractable
 
     void Update()
     {
-        PullPlayer = Vector3.zero;
+        pull = Vector3.zero;
         if (isSelected)
         {
             UpdateGrabbedMovement();
@@ -51,7 +57,7 @@ public class RopeManipulation : XRGrabInteractable
         Vector3 ropePullDirection = (transform.position - grabCoordinates);
 
         // Direction in which the pull would pull the player towards the rope, rather then the rope away from the player
-        Vector3 toPlayerDirection = PlayerController.instance.CenterOfGravity.position - grabCoordinates;
+        Vector3 toPlayerDirection = PlayerController.instance.transform.position - grabCoordinates;
 
         if(Vector3.Dot(ropePullDirection, toPlayerDirection) <= 0)
         {
@@ -61,7 +67,7 @@ public class RopeManipulation : XRGrabInteractable
         else
         {
             // We are pulling the player towards the rope
-            PullPlayer = -ropePullDirection;
+            pull = -ropePullDirection;
         }
     }
 
@@ -110,6 +116,7 @@ public class RopeManipulation : XRGrabInteractable
 
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
+        base.OnSelectEntered(args);
         grabCoordinates = manipulatorChainLink.transform.position;
         manipulatorChainLink.gameObject.SetActive(true);
         // Attach our manipulator link between the two closest links
@@ -130,6 +137,7 @@ public class RopeManipulation : XRGrabInteractable
 
     protected override void OnSelectExited(SelectExitEventArgs args)
     {
+        base.OnSelectExited(args);
         manipulatorChainLink.gameObject.SetActive(false);
         // Reconnect the other two chain links
         ReconnectLinksAroundManipulator();
@@ -141,8 +149,7 @@ public class RopeManipulation : XRGrabInteractable
     public void OnRopeAttached()
     {
         // Let's lose our grip
-        grabDisabled = true;
-        Invoke("ReenableGrab", 1f);
+        ForceRelease(1f);
 
         // Hand over ownership
         manipulatorChainLink.transform.parent = null;
@@ -153,11 +160,6 @@ public class RopeManipulation : XRGrabInteractable
         manipulatorChainLink = Instantiate(manipulatorChainLink, transform.position, transform.rotation);
         manipulatorChainLink.transform.parent = transform;
         manipulatorChainLink.gameObject.SetActive(false);
-    }
-
-    public void ReenableGrab()
-    {
-        grabDisabled = false;
     }
 
     /// <summary>

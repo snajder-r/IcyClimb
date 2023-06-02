@@ -7,9 +7,11 @@ public class WallAnchor : LodgeAbleGrabbable
 {
     [SerializeField] Transform ropeAttachPoint;
 
-    [SerializeField] protected XRSocketInteractor[] returnToHolsterList;
-
     private ChainLink link;
+
+    public override Vector3 GetPull() => Vector3.zero;
+
+    public override bool IsSecured() => false;
 
     void Start()
     {
@@ -18,9 +20,30 @@ public class WallAnchor : LodgeAbleGrabbable
 
     public void OnWallCollisionEnter(Collider cliff)
     {
+        // It can only be lodged by hand
+        if (heldController == null) return;
         Lodge();
     }
 
+    public override bool Dislodge()
+    {
+        if (PlayerController.instance.IsWallAnchorLastInChain(this))
+        {
+            DisconnectRope();
+            PlayerController.instance.WallAnchorRemoved(this);
+            return base.Dislodge();
+        }
+
+        // We do not dislodge if we are not the last rope-secured wall anchor
+        return false;
+    }
+
+    public void DisconnectRope()
+    {
+        link.nextLink.OnLinkConnected(link.previousLink);
+        link.previousLink.nextLink = link.nextLink;
+        Destroy(link.gameObject);
+    }
 
     public void OnTriggerEnter(Collider other)
     {
@@ -50,7 +73,6 @@ public class WallAnchor : LodgeAbleGrabbable
         link.nextLink = insertPoint;
         insertPoint.OnLinkConnected(link);
         link.gameObject.SetActive(true);
-
         
         link.transform.position = ropeAttachPoint.position;
 
@@ -60,19 +82,6 @@ public class WallAnchor : LodgeAbleGrabbable
 
         //Tell the player that we are secured
         PlayerController.instance.WallAnchorSecured(this);
-    }
-
-    protected override void GoBackToHolster()
-    {
-        foreach(XRSocketInteractor holster in returnToHolsterList)
-        {
-            if (holster.interactablesSelected.Count == 0)
-            {
-                returnToHolster = holster;
-                base.GoBackToHolster();
-                return;
-            }
-        }
     }
 
 

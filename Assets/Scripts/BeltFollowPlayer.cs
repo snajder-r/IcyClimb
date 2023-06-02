@@ -5,23 +5,20 @@ using UnityEngine;
 public class BeltFollowPlayer : MonoBehaviour
 {
     [Header("Reference Transforms")]
-    [SerializeField] private Transform mainCamera;
+    [SerializeField] private Transform beltAnchor;
     [SerializeField] private Transform leftHand;
     [SerializeField] private Transform rightHand;
     [SerializeField] private float minHeight = 0.5f;
+    [SerializeField] private PlayerLocomotion locomotion;
 
     [Header("Sensitivity")]
     [SerializeField] private float minHeadMovement = 0.1f;
     [Tooltip("Minimum head rotation in degrees")]
     [SerializeField] private float minHeadRotation = 30f;
     
-
     [Header("Speed")]
     [SerializeField] private float rotationDegreesPerSecond = 90f;
     [SerializeField] private float movementSpeed = 1f;
-
-    // Standard offset of the belt from the camera
-    private Vector3 m_BeltOffset;
 
     // Flags define whether the belt is in rotation and/or move mode
     private bool m_NeedsRotation = false;
@@ -29,7 +26,7 @@ public class BeltFollowPlayer : MonoBehaviour
 
     public void Start()
     {
-        m_BeltOffset = transform.position - mainCamera.position;
+
     }
 
     public void Update()
@@ -56,7 +53,7 @@ public class BeltFollowPlayer : MonoBehaviour
     // How far the belt needs to rotate around Y to be aligned with the head
     private float RequiredRotation { 
         get {
-            Quaternion deltaRotation = Quaternion.Inverse(transform.localRotation) * mainCamera.localRotation;
+            Quaternion deltaRotation = Quaternion.Inverse(transform.rotation) * beltAnchor.rotation;
             return Mathf.DeltaAngle(0, deltaRotation.eulerAngles.y);
         }
     }
@@ -66,29 +63,43 @@ public class BeltFollowPlayer : MonoBehaviour
     {
         get
         {
-            Vector3 currentOffset = transform.position - mainCamera.transform.position;
-            Vector3 movement = m_BeltOffset - currentOffset;
+            Vector3 currentOffset = transform.position - beltAnchor.position;
             // make sure the belt doesnt go into the floor
-            if(mainCamera.transform.position.y < minHeight)
+            if(beltAnchor.position.y < minHeight)
             {
-                movement.y = minHeight - transform.position.y;
+                currentOffset.y = transform.position.y - minHeight;
             }
-            return movement;
+            return -currentOffset;
         }
     }
 
     // Returns true if Y-rotation of the head has changed significantly
     private void CheckIfNeedRotation()
     {
+        // Always stay tight to the body
+        if (locomotion.IsBodyTurned)
+        {
+            m_NeedsRotation = true;
+            return;
+        }
+
         if (Mathf.Abs(RequiredRotation) > minHeadRotation)
         {
             m_NeedsRotation = true;
         }
     }
 
-    // Returns true if movement of the head has changed significantly
+    // Returns true if movement of the body moved or the head has changed significantly
     private void CheckIfNeedMovement()
     {
+        // Always stay tight to the body
+        if (locomotion.IsBodyMoved)
+        {
+            m_NeedsMove = true;
+            return;
+        }
+
+        // Check if head movement was significant
         if(RequiredMovement.magnitude > minHeadMovement)
         {
             m_NeedsMove = true;
@@ -105,13 +116,13 @@ public class BeltFollowPlayer : MonoBehaviour
             return;
         }
         // y rotation of camera relative to belt
-        Quaternion targetRotation = transform.localRotation * Quaternion.Euler(Vector3.up * rotationDegrees);
+        Quaternion targetRotation = transform.rotation * Quaternion.Euler(Vector3.up * rotationDegrees);
         float speed = rotationDegrees / 180;
         // Adapt speed to slow down as it gets closer to the target
         speed = Mathf.Lerp(rotationDegreesPerSecond / 4f, rotationDegreesPerSecond *4f, Mathf.Abs(speed));
         speed *= Time.deltaTime;
 
-        transform.localRotation = Quaternion.RotateTowards(transform.localRotation, targetRotation, speed);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, speed);
     }
 
 

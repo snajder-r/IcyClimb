@@ -8,13 +8,12 @@ public class RopeRenderer : MonoBehaviour
 {
 
     [SerializeField] private ChainLink ropeAnchor;
-    
-    private TrailRenderer trail;
+    [SerializeField] private TrailRenderer trail;
+
+
 
     void Start()
     {      
-        trail = GetComponentInChildren<TrailRenderer>();
-
         // This is to avoid that the renderer gets frustum culled. Making its bounds very large so it's always in the camera frustum!
         trail.bounds = new Bounds(Vector3.zero, Vector3.one * 1000);
     }
@@ -28,7 +27,7 @@ public class RopeRenderer : MonoBehaviour
 
     void RenderRope()
     {
-        Vector3[] positions = GetRopePositions().ToArray();
+        Vector3[] positions = GetRopePositions().Reverse().ToArray();
         if(positions.Length == trail.positionCount)
         {
             // If the number of chain links is unchanged, setting the positions is the cheapest option

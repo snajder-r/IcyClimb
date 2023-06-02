@@ -10,6 +10,9 @@ public class ChainLink : MonoBehaviour
     [SerializeField] public ChainLink nextLink;
     [SerializeField] float elasticity;
 
+    [Tooltip("Middle links have neither next nor previous links. They are they middle link between two directed chains")]
+    [SerializeField] bool isMiddleLink = false;
+
     [Header("Link replication")]
     [SerializeField] bool isLinkSpawner = false;
     [Tooltip("Distance from the next link at which we will spawn a new link. Infinity if no spawning is desired.")]
@@ -24,6 +27,11 @@ public class ChainLink : MonoBehaviour
     void Awake()
     {
         link = GetComponent<Rigidbody>();
+        if (isMiddleLink)
+        {
+            nextLink = null;
+        }
+
         if (nextLink)
         {
             // All stuff that requires this link to have a next link
@@ -83,10 +91,13 @@ public class ChainLink : MonoBehaviour
 
     public void OnLinkConnected(ChainLink other)
     {
+        // as a middle link I don't care about my neighbors
+        if (isMiddleLink) return;
+        
         previousLink = other;
     }
 
-    void AddForce(ChainLink caller, Vector3 force)
+    void AddForce(Vector3 force)
     {
         if (!link) return;
         link.AddForce(force * Time.deltaTime);
@@ -101,10 +112,10 @@ public class ChainLink : MonoBehaviour
 
         if (link.isKinematic)
         {
-            other.AddForce(this, force*2f);
+            other.AddForce(force*2f);
         }
         else {
-            other.AddForce(this, force);
+            other.AddForce(force);
         }
     }
 
@@ -122,9 +133,9 @@ public class ChainLink : MonoBehaviour
 
         ChainLink other = otherCollider.GetComponent<ChainLink>();
         if (!other) return;
-        //DestroyLoop(other);
-    }
 
+        DestroyLoop(other);
+    }
 
     void DestroyLoop(ChainLink other)
     {

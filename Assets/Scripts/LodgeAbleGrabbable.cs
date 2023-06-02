@@ -4,19 +4,17 @@ using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 
 [RequireComponent(typeof(Rigidbody))]
-public class LodgeAbleGrabbable : XRGrabInteractable
+public abstract class LodgeAbleGrabbable : DropablePully
 {
-    [SerializeField] protected XRSocketInteractor returnToHolster;
+    [SerializeField] protected XRSocketInteractor[] returnToHolsterList;
     [SerializeField] protected bool remainsLodgedIfReleased;
 
     public Rigidbody rigidBody { get; private set; }
-    protected XRBaseController heldController;
-    protected bool grabDisabled = false;
 
     /// <summary>
     /// Whether the object is currently lodged into ice.
     /// </summary>
-    public bool isLodged { get; private set; }
+    [SerializeField] public bool isLodged;
 
     public void SendHapticImpulse(float intensity, float duration)
     {
@@ -26,30 +24,23 @@ public class LodgeAbleGrabbable : XRGrabInteractable
         }
     }
 
-
     protected override void Awake()
     {
         base.Awake();
         rigidBody = GetComponent<Rigidbody>();
     }
 
-    public override bool IsSelectableBy(IXRSelectInteractor interactor)
+    private XRSocketInteractor GetFreeHolster()
     {
-        return !grabDisabled && base.IsSelectableBy(interactor);
+        foreach (XRSocketInteractor holster in returnToHolsterList)
+        {
+            if (holster.interactablesSelected.Count == 0)
+            {
+                return holster;
+            }
+        }
+        return null;
     }
-    protected void ReenableGrab()
-    {
-        grabDisabled = false;
-    }
-
-    protected void ForceRelease()
-    {
-        grabDisabled = true;
-
-        // One second cooldown before we can grab again
-        Invoke("ReenableGrab", 1f);
-    }
-
     protected virtual void GoBackToHolster()
     {
         if (this.isSelected)
@@ -64,11 +55,14 @@ public class LodgeAbleGrabbable : XRGrabInteractable
             return;
         }
 
-        Dislodge();
-        returnToHolster.StartManualInteraction((IXRSelectInteractable)this);
-    }
+        if (!Dislodge()) return;
 
-    public virtual void Lodge()
+        XRSocketInteractor holster = GetFreeHolster();
+        if (holster is null) return;
+
+        holster.StartManualInteraction((IXRSelectInteractable)this);
+    }
+    public virtual bool Lodge()
     {
         // First, freeze the pick in its position.
         rigidBody.constraints = RigidbodyConstraints.FreezeAll;
@@ -81,15 +75,13 @@ public class LodgeAbleGrabbable : XRGrabInteractable
 
         // Record that it's lodged
         isLodged = true;
-
-
+        return true;
     }
-
-    public virtual void Dislodge()
+    public virtual bool Dislodge()
     {
         if (!isLodged)
         {
-            return;
+            return true;
         }
 
         // Unfreeze the pick from its position.
@@ -102,7 +94,90 @@ public class LodgeAbleGrabbable : XRGrabInteractable
         }
 
         isLodged = false;
+        return true;
     }
+
+    protected override void OnSelectEntered(SelectEnterEventArgs args)
+    {
+        base.OnSelectEntered(args);
+
+        // Store which controller holds it, in order to use haptics
+        if (args.interactorObject is XRBaseControllerInteractor)
+        {
+            heldController = ((XRBaseControllerInteractor)args.interactorObject).xrController;
+            heldController.SendHapticImpulse(0.5f, 0.1f);
+        }
+    }
+
+    protected override void OnSelectExited(SelectExitEventArgs args)
+    {
+        base.OnSelectExited(args);
+        Invoke("GoBackToHolster", 3f);
+    }
+
+    protected override void OnActivated(ActivateEventArgs args)
+    {
+        base.OnActivated(args);
+        Dislodge();
+    }
+
+    public override void OnOutOfStamina()
+    {
+        base.OnOutOfStamina();
+        Dislodge();
+    }
+}
+
+public abstract class DropablePully : DropableGrabable, IPullProvider
+{
+    [SerializeField] private AudioClip[] handSlipSound;
+    public abstract Vector3 GetPull();
+    public abstract bool IsSecured();
+
+    public virtual void OnOutOfStamina()
+    {
+        ForceRelease(1f);
+        if (heldController)
+        {
+            AudioSource audio = heldController.gameObject.GetComponent<AudioSource>();
+            if (audio)
+            {
+                int index = Random.Range(0, handSlipSound.Length);
+                audio.PlayOneShot(handSlipSound[index], 0.5f);
+            }
+        }
+    }
+
+
+}
+
+public abstract class DropableGrabable : XRGrabInteractable
+{
+    protected XRBaseController heldController;
+
+    protected bool grabDisabled = false;
+
+    protected override void Awake()
+    {
+        base.Awake();
+    }
+
+    public override bool IsSelectableBy(IXRSelectInteractor interactor)
+    {
+        return !grabDisabled && base.IsSelectableBy(interactor);
+    }
+    protected void ReenableGrab()
+    {
+        grabDisabled = false;
+    }
+
+    public void ForceRelease(float renableInSeconds)
+    {
+        grabDisabled = true;
+        // One second cooldown before we can grab again
+        Invoke("ReenableGrab", renableInSeconds);
+    }
+
 
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
@@ -124,13 +199,7 @@ public class LodgeAbleGrabbable : XRGrabInteractable
         {
             // If it was deselected from hand (not from the holster)
             heldController = null;
-            Invoke("GoBackToHolster", 3f);
         }
     }
 
-    protected override void OnActivated(ActivateEventArgs args)
-    {
-        base.OnActivated(args);
-        Dislodge();
-    }
 }
