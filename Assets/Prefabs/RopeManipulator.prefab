@@ -11,8 +11,7 @@ GameObject:
   - component: {fileID: 7527796766120820460}
   - component: {fileID: 7527796766120820450}
   - component: {fileID: 7527796766120820461}
-  - component: {fileID: 7527796766120820451}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: RopeManipulator
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -68,7 +67,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   m_InteractionLayers:
-    m_Bits: 64
+    m_Bits: 4
   m_DistanceCalculationMode: 1
   m_SelectMode: 0
   m_CustomReticle: {fileID: 0}
@@ -175,20 +174,8 @@ MonoBehaviour:
   m_StartingSingleGrabTransformers: []
   m_StartingMultipleGrabTransformers: []
   m_AddDefaultGrabTransformers: 1
+  handSlipSound: []
   startLink: {fileID: 0}
   endLink: {fileID: 0}
   manipulatorChainLink: {fileID: 0}
   hand: {fileID: 0}
---- !u!135 &7527796766120820451
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7527796766120820463}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.015
-  m_Center: {x: 0, y: 0, z: 0}

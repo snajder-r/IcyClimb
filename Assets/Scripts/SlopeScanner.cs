@@ -33,7 +33,7 @@ public class SlopeScanner : MonoBehaviour
         {
             RaycastHit hit;
             Vector3 normal = -Vector3.up;
-            if (Physics.Raycast(transform.position + Vector3.up * 0.1f, offset, out hit, 0.4f, floorLayerMask))
+            if (Physics.Raycast(transform.position, offset, out hit, 2f, floorLayerMask))
             {
                 normal = hit.normal;
             }

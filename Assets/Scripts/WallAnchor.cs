@@ -6,8 +6,11 @@ using UnityEngine.XR.Interaction.Toolkit;
 public class WallAnchor : LodgeAbleGrabbable
 {
     [SerializeField] Transform ropeAttachPoint;
+    
+    Rope rope;
 
-    private ChainLink link;
+    public ChainLink link { get; private set; }
+    
 
     public override Vector3 GetPull() => Vector3.zero;
 
@@ -15,6 +18,7 @@ public class WallAnchor : LodgeAbleGrabbable
 
     void Start()
     {
+        rope = Rope.instance;
         remainsLodgedIfReleased = true;
     }
 
@@ -27,22 +31,29 @@ public class WallAnchor : LodgeAbleGrabbable
 
     public override bool Dislodge()
     {
-        if (PlayerController.instance.IsWallAnchorLastInChain(this))
+        if(link is not null)
         {
-            DisconnectRope();
-            PlayerController.instance.WallAnchorRemoved(this);
-            return base.Dislodge();
+            // We currently have a rope attached
+            if (rope.IsWallAnchorLastInChain(this))
+            {
+                // We are allowed to disconnect the rope
+                DisconnectRope();
+            }
+            else
+            {
+                // We are not allowed to disconnect the rope and thus can't dislodge
+                return false;
+            }
         }
-
-        // We do not dislodge if we are not the last rope-secured wall anchor
-        return false;
+        return base.Dislodge();
     }
 
     public void DisconnectRope()
     {
-        link.nextLink.OnLinkConnected(link.previousLink);
-        link.previousLink.nextLink = link.nextLink;
+        rope.WallAnchorRemoved(this);
+        link.DisconnectSelf();
         Destroy(link.gameObject);
+        link = null;
     }
 
     public void OnTriggerEnter(Collider other)
@@ -53,14 +64,17 @@ public class WallAnchor : LodgeAbleGrabbable
         // If we already have a link attached, ignore the trigger
         if (link) return;
 
-        // Get the link which the player is trying to attach to us
-        link = other.GetComponent<ChainLink>();
-        if (!link) return;
-
         // Get the manipulator that has been used to move the link towards us.
-        RopeManipulation manipulator = link.GetComponentInParent<RopeManipulation>();
+        RopeManipulation manipulator = other.GetComponent<RopeManipulation>();
         // This also ensures that we don't just catch the rope by chance
         if (!manipulator) return;
+
+        // Only a manipulator that is selected (held in hand) should trigger me
+        if (!manipulator.isSelected) return;
+
+        // Get the link which the player is trying to attach to us
+        link = manipulator.ManipulatorChainLink;
+        if (!link) return;
 
         // Inform the rope manipulator that we will take responsibility for this chain link
         manipulator.OnRopeAttached();
@@ -68,20 +82,13 @@ public class WallAnchor : LodgeAbleGrabbable
         link.transform.parent = transform;
 
         ChainLink insertPoint = manipulator.GetChainLinkToPrependNewWallAnchors();
-        insertPoint.previousLink.nextLink = link;
-        link.OnLinkConnected(insertPoint.previousLink);
-        link.nextLink = insertPoint;
-        insertPoint.OnLinkConnected(link);
+        insertPoint.InsertBefore(link);
         link.gameObject.SetActive(true);
         
         link.transform.position = ropeAttachPoint.position;
 
-        Rigidbody linkRb = link.GetComponent<Rigidbody>();
-        // I think this is true anyways, but let's make sure
-        linkRb.isKinematic = true;
-
         //Tell the player that we are secured
-        PlayerController.instance.WallAnchorSecured(this);
+        rope.WallAnchorSecured(this);
     }
 
 

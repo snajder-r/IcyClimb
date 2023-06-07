@@ -5,191 +5,185 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class ChainLink : MonoBehaviour
 {
-    [Tooltip("If previous link is a regular Rigidbody attach it here. If it is a ChainLink it automatically registers.")]
-    [SerializeField] public ChainLink previousLink;
-    [SerializeField] public ChainLink nextLink;
+    [field: SerializeField] public ChainLink previousLink { get; private set; }
+    [field: SerializeField] public ChainLink nextLink { get; private set; }
     [SerializeField] float elasticity;
 
-    [Tooltip("Middle links have neither next nor previous links. They are they middle link between two directed chains")]
-    [SerializeField] bool isMiddleLink = false;
-
     [Header("Link replication")]
-    [SerializeField] bool isLinkSpawner = false;
+    [SerializeField] bool isSpawnerBefore = false;
+    [SerializeField] bool isSpawnerAfter = false;
     [Tooltip("Distance from the next link at which we will spawn a new link. Infinity if no spawning is desired.")]
-    [SerializeField] float spawnDistance = float.PositiveInfinity;
+    [SerializeField] float spawnForce = float.PositiveInfinity;
+    [SerializeField] float deSpawnDistance = 0f;
     [Tooltip("Template for new links. If none provided a copy of the next link will be created.")]
     [SerializeField] private GameObject newLinkPrefab;
     [SerializeField] private float linkSpawnCooldown = 1f;
+    [SerializeField] private LayerMask wallLayerMask;
 
-    private Rigidbody link;
+    private Rigidbody linkRigidBody;
     private float currentLinkSpawnCooldown = 0f;
 
-    void Awake()
-    {
-        link = GetComponent<Rigidbody>();
-        if (isMiddleLink)
-        {
-            nextLink = null;
-        }
 
-        if (nextLink)
+    public static void InsertBetween(ChainLink insert, ChainLink before, ChainLink after)
+    {
+        insert.nextLink = after;
+        insert.previousLink = before;
+        after.previousLink = insert;
+        before.nextLink = insert;
+    }
+
+    public bool InsertAfter(ChainLink insert)
+    {
+        if (!nextLink) return false;
+        InsertBetween(insert, this, nextLink);
+        return true;
+    }
+
+    public bool InsertBefore(ChainLink insert)
+    {
+        if (!previousLink) return false;
+        InsertBetween(insert, previousLink, this);
+        return true;
+    }
+
+    public void DisconnectSelf() => DisconnectSelf(true);
+    public void DisconnectSelf(bool informNeighbors)
+    {
+        if (informNeighbors) { 
+            if (previousLink) previousLink.nextLink = nextLink;
+            if (nextLink) nextLink.previousLink = previousLink;
+        }
+        nextLink = null;
+        previousLink = null;
+    }
+
+    public void Start()
+    {
+        linkRigidBody = GetComponent<Rigidbody>();
+
+        if (nextLink && !nextLink.previousLink)
         {
-            // All stuff that requires this link to have a next link
-            SetUpNextLink();
+            // If editor only defined the next link, let's inform our next link that we are here
+            nextLink.previousLink = this;
         }
     }
 
-    void SetUpNextLink()
+    protected void Awake() => Start();
+
+    private void Update()
     {
-        if (!newLinkPrefab && isLinkSpawner)
+        if (linkRigidBody.isKinematic)
         {
-            // We copy it in case it gets deleted!
-            newLinkPrefab = Instantiate(nextLink.gameObject, transform.position, transform.rotation);
-            // Important, because otherwise it will try to register itself somewhere as soon as it wakes up
-            newLinkPrefab.GetComponent<ChainLink>().nextLink = null;
-            newLinkPrefab.SetActive(false);
+            if (nextLink)
+            {
+                // Kinematic nodes start forward propagation
+                nextLink.Forward(ComputeForce(nextLink));
+            }
+            if (previousLink)
+            {
+                // Kinematic nodes start backward propagation
+                previousLink.Backward(ComputeForce(previousLink));
+            }
         }
 
-        ChainLink nextLinkComponent = nextLink.GetComponent<ChainLink>();
-        if (nextLinkComponent)
+        if (!linkRigidBody.isKinematic)
         {
-            // If the next link is also a chainlink (and not just a simple rigidbody) let it know we latched on
-            nextLinkComponent.OnLinkConnected(this);
-        }
-    }
-
-    void Update()
-    {
-        currentLinkSpawnCooldown = Mathf.Clamp(currentLinkSpawnCooldown - Time.deltaTime, 0, 3f);
-        StrainForce(previousLink);
-        StrainForce(nextLink);
-
-        if (isLinkSpawner)
-        {
-            SpawnNewLink();
+            // Only non-kinematic spawns can destroy itself
+            DespawnIfTooCloseToNeighbors();
         }
     }
 
-    void SpawnNewLink()
+    public void Forward(Vector3 force)
     {
+        if (!linkRigidBody.isKinematic)
+        {
+            linkRigidBody.AddForce(force);
+        }
+
+
+        if (isSpawnerBefore && force.magnitude > spawnForce)
+        {
+            SpawnBetween(previousLink, this);
+        }
+
+        // Forward propagation ends when there is no next link
         if (!nextLink) return;
+        // Kinematic nodes start propagation, they don't pass it on
+        if (linkRigidBody.isKinematic) return;
+
+        nextLink.Forward(ComputeForce(nextLink));
+    }
+
+    public void Backward(Vector3 force)
+    {
+        linkRigidBody.AddForce(force);
+
+        if (isSpawnerAfter && force.magnitude > spawnForce)
+        {
+            SpawnBetween(this, nextLink);
+        }
+
+        // Backwards propagation ends when there is no previous link
+        if (!previousLink) return;
+        // Kinematic nodes start backward propagation, they don't pass it on
+        if (linkRigidBody.isKinematic) return;
+
+        previousLink.Backward(ComputeForce(previousLink));
+    }
+
+    Vector3 ComputeForce(ChainLink toLink)
+    {
+        Vector3 force = transform.position - toLink.transform.position;
+        force *= elasticity * Time.deltaTime;
+        return force;
+    }
+
+    void DespawnIfTooCloseToNeighbors()
+    {
+        if (!nextLink || !previousLink) return;
+
+        float distance = (previousLink.transform.position - transform.position).magnitude;
+        // Don't despawn if I'm far enough away from previous node
+        if (distance >= deSpawnDistance) return;
+
+        distance = (nextLink.transform.position - transform.position).magnitude;
+        // Don't despawn if I'm far enough away from next node
+        if (distance >= deSpawnDistance) return;
+
+        previousLink.nextLink = nextLink;
+        nextLink.previousLink = previousLink;
+        Destroy(gameObject);
+    }
+
+    void SpawnBetween(ChainLink before, ChainLink after)
+    {
+        currentLinkSpawnCooldown -= Time.deltaTime;
+
+        // Stop here if we are still waiting on the cooldown
         if (currentLinkSpawnCooldown > 0f) return;
 
-        Vector3 distance = nextLink.transform.position - transform.position;
-        if(distance.magnitude > spawnDistance)
-        {
-            GameObject newLink = Instantiate(newLinkPrefab, transform.position + distance/2f, transform.rotation);
-            newLink.SetActive(true);
-            ChainLink newLinkComponent = newLink.GetComponent<ChainLink>();
-            newLinkComponent.nextLink = nextLink;
-            nextLink = newLinkComponent;
-            newLinkComponent.OnLinkConnected(this);
-            newLinkComponent.Awake();
-        }
+        Vector3 offset = after.transform.position - before.transform.position;
+
+        Vector3 spawnPoint = before.transform.position + offset / 2f;
+
+        // Make sure the new spawn point is not inside a wall
+        if (!CanLinkSeeSpawnPoint(before.transform.position, spawnPoint)) return;
+        if (!CanLinkSeeSpawnPoint(after.transform.position, spawnPoint)) return;
+
+        ChainLink newLink = Instantiate(newLinkPrefab, spawnPoint, transform.rotation).GetComponent<ChainLink>();
+        newLink.Start();
+        InsertBetween(newLink, before, after);
+
         currentLinkSpawnCooldown = linkSpawnCooldown;
     }
 
-    public void OnLinkConnected(ChainLink other)
+    bool CanLinkSeeSpawnPoint(Vector3 positionA, Vector3 positionSpawn)
     {
-        // as a middle link I don't care about my neighbors
-        if (isMiddleLink) return;
-        
-        previousLink = other;
+        Ray ray = new Ray(positionA, positionSpawn - positionA);
+        float rayLength = (positionSpawn - positionA).magnitude;
+        return !Physics.Raycast(ray, rayLength, wallLayerMask.value);
     }
 
-    void AddForce(Vector3 force)
-    {
-        if (!link) return;
-        link.AddForce(force * Time.deltaTime);
-    }
 
-    void StrainForce(ChainLink other)
-    {
-        if (!other) return;
 
-        Vector3 force = transform.position - other.transform.position;
-        force = force * (1f + elasticity);
-
-        if (link.isKinematic)
-        {
-            other.AddForce(force*2f);
-        }
-        else {
-            other.AddForce(force);
-        }
-    }
-
-    private void OnTriggerEnter(Collider otherCollider)
-    {
-        // Ignore trigger from our neighbors
-        if (nextLink) {
-            if (otherCollider.gameObject == nextLink.gameObject) return;
-        }
-        if (previousLink)
-        {
-            if (otherCollider.gameObject == previousLink.gameObject) return;
-        }
-        
-
-        ChainLink other = otherCollider.GetComponent<ChainLink>();
-        if (!other) return;
-
-        DestroyLoop(other);
-    }
-
-    void DestroyLoop(ChainLink other)
-    {
-        // Kinematic links should not be destroyed
-        if (other.link.isKinematic || link.isKinematic) return;
-
-        List<ChainLink> shortcut;
-        //Forward search
-        if (SearchForLink(other, true, out shortcut))
-        {
-            nextLink = other;
-            other.OnLinkConnected(this);
-            foreach (ChainLink toDelete in shortcut)
-            {
-                Destroy(toDelete.gameObject);
-            }
-        }
-        //Backward search
-        if (SearchForLink(other, false, out shortcut))
-        {
-            previousLink = other;
-            other.nextLink = this;
-            foreach (ChainLink toDelete in shortcut)
-            {
-                Destroy(toDelete.gameObject);
-            }
-        }
-    }
-    bool SearchForLink(ChainLink other, bool forward, out List<ChainLink> traversed)
-    {
-        ChainLink current = this;
-        traversed = new List<ChainLink>();
-        while (true) {
-            current = forward ? current.nextLink : current.previousLink;
-            if (!current)
-            {
-                return false;
-            }
-            if (current.link.isKinematic)
-            {
-                // We should not traverse kinematic links. They are fixed anchors
-                return false;
-            }
-            if (traversed.Contains(current))
-            {
-                // There shouldn't be a loop, but who knows
-                return false;
-            }
-            if (current == other)
-            {
-                return true;
-            }
-
-            traversed.Add(current);
-        }
-    }
 }

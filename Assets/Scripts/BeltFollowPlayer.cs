@@ -80,10 +80,7 @@ public class BeltFollowPlayer : MonoBehaviour
         if (locomotion.IsBodyTurned)
         {
             m_NeedsRotation = true;
-            return;
-        }
-
-        if (Mathf.Abs(RequiredRotation) > minHeadRotation)
+        }else if (Mathf.Abs(RequiredRotation) > minHeadRotation)
         {
             m_NeedsRotation = true;
         }
@@ -92,6 +89,7 @@ public class BeltFollowPlayer : MonoBehaviour
     // Returns true if movement of the body moved or the head has changed significantly
     private void CheckIfNeedMovement()
     {
+        
         // Always stay tight to the body
         if (locomotion.IsBodyMoved)
         {
@@ -110,17 +108,20 @@ public class BeltFollowPlayer : MonoBehaviour
     {
         float rotationDegrees = RequiredRotation;
 
-        if (Mathf.Abs(rotationDegrees) < 1f)
-        {
-            m_NeedsRotation = false;
-            return;
-        }
         // y rotation of camera relative to belt
         Quaternion targetRotation = transform.rotation * Quaternion.Euler(Vector3.up * rotationDegrees);
         float speed = rotationDegrees / 180;
-        // Adapt speed to slow down as it gets closer to the target
-        speed = Mathf.Lerp(rotationDegreesPerSecond / 4f, rotationDegreesPerSecond *4f, Mathf.Abs(speed));
-        speed *= Time.deltaTime;
+        
+        if (locomotion.IsBodyTurned)
+        {
+            // If we are turning together with the body
+            speed = 360f;
+        }
+        else {
+            // If we are gradually turning with the head
+            speed = Mathf.Lerp(rotationDegreesPerSecond / 4f, rotationDegreesPerSecond *4f, Mathf.Abs(speed));
+            speed *= Time.deltaTime;
+        }
 
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, speed);
     }
@@ -130,18 +131,22 @@ public class BeltFollowPlayer : MonoBehaviour
     {
         Vector3 requiredMovement = RequiredMovement;
 
-        if (requiredMovement.magnitude < 0.1)
-        {
-            m_NeedsMove = false;
-            return;
-        }
         float speed = requiredMovement.magnitude;
-        // Adapt speed to slow down as it gets closer to the target
-        speed = Mathf.Lerp(movementSpeed / 4f, movementSpeed * 4f, Mathf.Abs(speed));
-        speed *= Time.deltaTime;
+        if (locomotion.IsBodyMoved)
+        {
+            // If we are moving together with the body
+            speed = 100f;
+        }
+        else
+        {
+            // If we are moving gradually with the head
+            speed = Mathf.Lerp(movementSpeed / 4f, movementSpeed * 4f, Mathf.Abs(speed));
+            speed *= Time.deltaTime;
+        }
+
         Vector3 targetPosition = transform.position + requiredMovement;
         transform.position = Vector3.MoveTowards(transform.position, targetPosition, speed);
     }
-
+   
 
 }

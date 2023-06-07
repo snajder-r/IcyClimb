@@ -17,9 +17,9 @@ TagManager:
   - Wall
   - Camera
   - Rope
-  - 
-  - 
-  - 
+  - WallAnchor
+  - Hands
+  - Break
   - 
   - 
   - 

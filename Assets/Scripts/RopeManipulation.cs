@@ -7,9 +7,10 @@ public class RopeManipulation : DropablePully
 {
     [SerializeField] private ChainLink startLink;
     [SerializeField] private ChainLink endLink;
+    [SerializeField] private ChainLink insertionPointLink;
 
     [Tooltip("The chain link we will insert when we are grabbed")]
-    [SerializeField] private ChainLink manipulatorChainLink;
+    [field:SerializeField] public ChainLink ManipulatorChainLink { get; private set; }
 
     [SerializeField] private XRBaseInteractor hand;
 
@@ -33,12 +34,14 @@ public class RopeManipulation : DropablePully
     private void Start()
     {
         // We only need this when we are activated
-        manipulatorChainLink.GetComponent<Rigidbody>().isKinematic = true;
-        manipulatorChainLink.gameObject.SetActive(false);
+        ManipulatorChainLink.GetComponent<Rigidbody>().isKinematic = true;
+        ManipulatorChainLink.gameObject.SetActive(false);
     }
 
     void Update()
     {
+        ManipulatorChainLink.transform.position = transform.position;
+
         pull = Vector3.zero;
         if (isSelected)
         {
@@ -57,12 +60,12 @@ public class RopeManipulation : DropablePully
         Vector3 ropePullDirection = (transform.position - grabCoordinates);
 
         // Direction in which the pull would pull the player towards the rope, rather then the rope away from the player
-        Vector3 toPlayerDirection = PlayerController.instance.transform.position - grabCoordinates;
+        Vector3 toPlayerDirection = PlayerController.instance.playerCenterOfGravity.position - grabCoordinates;
 
-        if(Vector3.Dot(ropePullDirection, toPlayerDirection) <= 0)
+        if(Vector3.Dot(ropePullDirection, toPlayerDirection) < 0)
         {
             // We are pulling the rope away from us
-            manipulatorChainLink.GetComponent<Rigidbody>().MovePosition(transform.position);
+            ManipulatorChainLink.GetComponent<Rigidbody>().MovePosition(transform.position);
         }
         else
         {
@@ -89,6 +92,7 @@ public class RopeManipulation : DropablePully
         while (true)
         {
             linkB = linkA.nextLink;
+            if (linkB is null) break;
 
             Vector3 candidatePosition = GetClosestPointOnSegment(handPosition, linkA.transform.position, linkB.transform.position);
             float distance = (candidatePosition - handPosition).magnitude;
@@ -117,28 +121,21 @@ public class RopeManipulation : DropablePully
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
         base.OnSelectEntered(args);
-        grabCoordinates = manipulatorChainLink.transform.position;
-        manipulatorChainLink.gameObject.SetActive(true);
+        grabCoordinates = ManipulatorChainLink.transform.position;
+        ManipulatorChainLink.gameObject.SetActive(true);
         // Attach our manipulator link between the two closest links
-        manipulatorChainLink.nextLink = closestPredecessorLink.nextLink;
-        manipulatorChainLink.nextLink.OnLinkConnected(manipulatorChainLink);
-        closestPredecessorLink.nextLink = manipulatorChainLink;
-        manipulatorChainLink.OnLinkConnected(closestPredecessorLink);
+        closestPredecessorLink.InsertAfter(ManipulatorChainLink);
     }
 
     private void ReconnectLinksAroundManipulator()
     {
-        if (!manipulatorChainLink.nextLink || !manipulatorChainLink.previousLink) return;
-        manipulatorChainLink.previousLink.nextLink = manipulatorChainLink.nextLink;
-        manipulatorChainLink.nextLink.OnLinkConnected(manipulatorChainLink.previousLink);
-        manipulatorChainLink.nextLink = null;
-        manipulatorChainLink.previousLink = null;
+        ManipulatorChainLink.DisconnectSelf();
     }
 
     protected override void OnSelectExited(SelectExitEventArgs args)
     {
         base.OnSelectExited(args);
-        manipulatorChainLink.gameObject.SetActive(false);
+        ManipulatorChainLink.gameObject.SetActive(false);
         // Reconnect the other two chain links
         ReconnectLinksAroundManipulator();
     }
@@ -152,14 +149,16 @@ public class RopeManipulation : DropablePully
         ForceRelease(1f);
 
         // Hand over ownership
-        manipulatorChainLink.transform.parent = null;
+        ManipulatorChainLink.transform.parent = null;
         ReconnectLinksAroundManipulator();
 
         // We hand over our manipulator chain link to the wall anchor, so we create a new one for ourselves
         // This is also important because we don't want to ruin the chain when OnSelectExited is called
-        manipulatorChainLink = Instantiate(manipulatorChainLink, transform.position, transform.rotation);
-        manipulatorChainLink.transform.parent = transform;
-        manipulatorChainLink.gameObject.SetActive(false);
+        ManipulatorChainLink = Instantiate(ManipulatorChainLink, transform.position, transform.rotation);
+        ManipulatorChainLink.DisconnectSelf(false);
+        ManipulatorChainLink.GetComponent<ChainLink>().Start();
+        ManipulatorChainLink.transform.parent = transform;
+        ManipulatorChainLink.gameObject.SetActive(false);
     }
 
     /// <summary>
@@ -168,6 +167,6 @@ public class RopeManipulation : DropablePully
     /// <returns></returns>
     public ChainLink GetChainLinkToPrependNewWallAnchors()
     {
-        return startLink;
+        return insertionPointLink;
     }
 }

@@ -39,6 +39,9 @@ public class PlayerLocomotion : LocomotionProvider
     private float gravity;
 
     [SerializeField]
+    private float terminalFallingSpeed;
+
+    [SerializeField]
     private float dampen = 0.002f;
 
     [SerializeField]
@@ -53,10 +56,7 @@ public class PlayerLocomotion : LocomotionProvider
     public List<Hand> hands;
 
     [SerializeField]
-    public float ropeTighteningSpeed = 1f;
-
-    [SerializeField]
-    public Transform ropeAnchor;
+    public Rope rope;
 
     public bool IsGrounded { get; private set; }
 
@@ -80,28 +80,20 @@ public class PlayerLocomotion : LocomotionProvider
     [ShowOnly]
     private Vector3 cumulativeGravity;
 
+    private Vector3 floorNormal;
+
     private bool wasGrounded;
     private bool wasSecured;
-
-    
-    private Vector3 finalRopeTaughtPosition;
-    private Vector3 ropeTaughtPosition;
-
-    // Normals of the ground we stand on, or Vector.up if in mid air
-    private Vector3 floorNormal;
+    private bool wasRopeTaut;
 
     // If true, no (or very little) gravity should be applied
     private bool isSecured;
-    private bool isRopeTaught;
 
     // SHORT HANDS
     private XROrigin origin => system.xrOrigin;
     private Transform cameraOffset => origin.CameraFloorOffsetObject.transform;
     private Vector2 moveInput => inputMoveAction.action.ReadValue<Vector2>();
     private Vector2 turnInput => inputTurnAction.action.ReadValue<Vector2>();
-    private float distanceToAnchor => (ropeAnchor.position - playerCenterOfGravity.position).magnitude;
-    private float distanceToGravity => (GetHeadAdjustedGravitationPoint() - playerCenterOfGravity.position).magnitude;
-
     [SerializeField] Transform debug;
 
     // METHODS
@@ -109,7 +101,7 @@ public class PlayerLocomotion : LocomotionProvider
     {
         wasGrounded = true;
         isSecured = false;
-        isRopeTaught = false;
+        wasRopeTaut = false;
         velocity = Vector3.zero;
     }
 
@@ -121,8 +113,6 @@ public class PlayerLocomotion : LocomotionProvider
         IsBodyMoved = false;
         IsBodyTurned = false;
         isSecured = false;
-
-        PullRopeTaught();
 
         // Scan if we are on solid ground
         CheckIfGrounded();
@@ -147,7 +137,9 @@ public class PlayerLocomotion : LocomotionProvider
             Fall();
         }
 
-        if (!isSecured) { 
+        IsBodyMoved = velocity.magnitude > 0f;
+
+        if (!isSecured && !wasRopeTaut) { 
             // Add a small amount of gravity
             velocity -= Vector3.up * 0.01f * gravity * Time.deltaTime;
         }
@@ -181,80 +173,55 @@ public class PlayerLocomotion : LocomotionProvider
         }
     }
 
-    private Vector3 GetHeadAdjustedGravitationPoint() {
-        Vector3 headOffset = Quaternion.Inverse(cameraOffset.rotation) * origin.Camera.transform.localPosition;
-        // Standing tall shouldn't pull you up
-        headOffset.y = 0f;
-        return ropeTaughtPosition + headOffset;
-    }
-    void PullRopeTaught()
-    {
-        finalRopeTaughtPosition = ropeAnchor.position - Vector3.up * distanceToAnchor;
-        ropeTaughtPosition += (finalRopeTaughtPosition - ropeTaughtPosition) * ropeTighteningSpeed * Time.deltaTime;
-
-        TrailRenderer trail = debug.GetComponentInChildren<TrailRenderer>();
-        debug.transform.position = ropeTaughtPosition;
-        trail.Clear();
-        trail.AddPosition(ropeAnchor.position);
-        trail.AddPosition(ropeTaughtPosition);
-    }
-
     void Move()
     {
         if (!CanBeginLocomotion()) return;
         if (!BeginLocomotion()) return;
         Vector3 toTravel = velocity * Time.deltaTime;
         Vector3 positionBefore = playerCenterOfGravity.position;
+
+        // Fix any uncaught physics bugs
+        toTravel = MathUtils.ReplaceNaN(toTravel);
+        toTravel = Vector3.ClampMagnitude(toTravel, terminalFallingSpeed);
+
         characterController.Move(toTravel);
         Vector3 positionAfter = playerCenterOfGravity.position;
 
         Vector3 travelled = positionAfter - positionBefore;
         // Dampen gravity in case we collide with something
-        cumulativeGravity *= travelled.magnitude / toTravel.magnitude;
+        if(toTravel.magnitude > 0f) { 
+            cumulativeGravity *= travelled.magnitude / toTravel.magnitude;
+        }
 
-        IsBodyMoved = IsBodyMoved || travelled.magnitude > 0f;
         EndLocomotion();
     }
 
     void Fall()
     {
-        Vector3 gravityIncrement = floorNormal.normalized * gravity;
-
-        if (ropeAnchor)
-        {
-            if(distanceToAnchor > distanceToGravity) {
-                // The rope pulls us towards its maximum stretch point
-
-                gravityIncrement = (GetHeadAdjustedGravitationPoint() - playerCenterOfGravity.position);
-
-                if (!isRopeTaught)
-                {
-                    // We were just caught in the rope, redirect some of the existing velocity
-                    cumulativeGravity = gravityIncrement.normalized * cumulativeGravity.magnitude;
-                    // But don't let it bounce back up!
-                    cumulativeGravity.y = 0f;
-                }
-
-                // We are safely caught in the rope which is now fully stretched
-                isRopeTaught = true;
-            }
-            else
-            {
-                // We have a rope attached but are free-falling
-                isRopeTaught = false;
+        Vector3 gravityIncrement = floorNormal.normalized;
+        bool isRopeTaut = rope.IsRopeTaut();
+        if (isRopeTaut) { 
+            gravityIncrement = (rope.GetFallTowardsPoint() - playerCenterOfGravity.position);
+            if (!wasRopeTaut) { 
+                // We were just caught in the rope, redirect some of the existing velocity
+                cumulativeGravity = gravityIncrement.normalized * cumulativeGravity.magnitude;
+                // But absorb all prior vertical velocity
+                cumulativeGravity.y = 0f;
             }
         }
-        else
-        {
-            // We have no rope anchored to the wall yet
-            isRopeTaught = false;
-        }
+        wasRopeTaut = isRopeTaut;
 
         // First dampen existing energy
-        cumulativeGravity = cumulativeGravity * Mathf.Pow((1f - dampen), Time.deltaTime);
+        cumulativeGravity = cumulativeGravity * Mathf.Pow(1f - dampen, Time.deltaTime);
         cumulativeGravity += gravityIncrement * Time.deltaTime;
-        velocity += cumulativeGravity;
+
+        // Fix any uncaught physics bugs
+        cumulativeGravity = MathUtils.ReplaceNaN(cumulativeGravity);
+        cumulativeGravity = Vector3.ClampMagnitude(cumulativeGravity, terminalFallingSpeed);
+        
+        velocity += cumulativeGravity * gravity;
     }
+    
 
     Vector3 QueryPullProviders()
     {
