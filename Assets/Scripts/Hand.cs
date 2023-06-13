@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.Animations;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.XR.Interaction.Toolkit;
@@ -7,6 +8,7 @@ using UnityEngine.XR.Interaction.Toolkit;
 public class Hand : XRDirectInteractor, IPullProvider
 {
     [SerializeField] Transform playerCenterOfGravity;
+    [SerializeField] Animator animator;
     [SerializeField] float maxStamina;
     [SerializeField] float staminaRegeneration;
     [SerializeField] float pullStrength = 1f;
@@ -73,6 +75,8 @@ public class Hand : XRDirectInteractor, IPullProvider
         {
             OnOutOfStamina();
         }
+
+        animator.SetBool("b_grab", xrController.selectInteractionState.active);
     }
 
     protected override void OnSelectEntered(SelectEnterEventArgs args)
@@ -82,6 +86,8 @@ public class Hand : XRDirectInteractor, IPullProvider
         {
             heldPully = (DropablePully) args.interactableObject;
         }
+
+        
     }
 
     protected override void OnSelectExited(SelectExitEventArgs args)
@@ -89,6 +95,8 @@ public class Hand : XRDirectInteractor, IPullProvider
         base.OnSelectExited(args);
         heldPully = null;
     }
+
+    
 
     public void OnOutOfStamina()
     {

@@ -35,18 +35,17 @@ public class BeltFollowPlayer : MonoBehaviour
         {
             CheckIfNeedRotation();
         }
-        if (m_NeedsRotation)
-        {
-            RotateTowardsHead();
-        }
+
 
         if (!m_NeedsMove)
         {
             CheckIfNeedMovement();
         }
-        if (m_NeedsMove)
+        if (m_NeedsMove || m_NeedsRotation)
         {
+            //Move and rotate together
             MoveTowardsHead();
+            RotateTowardsHead();
         }
     }
 
@@ -124,6 +123,11 @@ public class BeltFollowPlayer : MonoBehaviour
         }
 
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, speed);
+
+        if(Mathf.Abs(rotationDegrees) < 1f)
+        {
+            m_NeedsRotation = false;
+        }
     }
 
 
@@ -146,6 +150,11 @@ public class BeltFollowPlayer : MonoBehaviour
 
         Vector3 targetPosition = transform.position + requiredMovement;
         transform.position = Vector3.MoveTowards(transform.position, targetPosition, speed);
+
+        if(requiredMovement.magnitude < 0.01f)
+        {
+            m_NeedsMove = false;
+        }
     }
    
 

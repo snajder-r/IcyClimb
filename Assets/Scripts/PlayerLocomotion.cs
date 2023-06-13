@@ -58,7 +58,8 @@ public class PlayerLocomotion : LocomotionProvider
     [SerializeField]
     public Rope rope;
 
-    public bool IsGrounded { get; private set; }
+    [field:SerializeField]
+    public bool IsGrounded { get; set; }
 
     /// <summary>
     /// Informs whether we should treat movement as body movement or head movement. 
@@ -87,7 +88,11 @@ public class PlayerLocomotion : LocomotionProvider
     private bool wasRopeTaut;
 
     // If true, no (or very little) gravity should be applied
-    private bool isSecured;
+    public bool isSecured;
+
+    // For checking collision with floor
+
+
 
     // SHORT HANDS
     private XROrigin origin => system.xrOrigin;
@@ -99,23 +104,27 @@ public class PlayerLocomotion : LocomotionProvider
     // METHODS
     protected override void Awake()
     {
-        wasGrounded = true;
         isSecured = false;
-        wasRopeTaut = false;
         velocity = Vector3.zero;
+        // makes sure we fall to the ground in the first frame
+        wasRopeTaut = true;
+        wasGrounded = false;
+        cumulativeGravity = Vector3.up * -100000f;  
     }
 
     
     void Update()
     {
-        //Initialization
-        velocity = (Mathf.Pow(inertia, Time.deltaTime)) * velocity;
         IsBodyMoved = false;
         IsBodyTurned = false;
         isSecured = false;
 
         // Scan if we are on solid ground
         CheckIfGrounded();
+
+        //Initialization
+        velocity = (Mathf.Pow(inertia, Time.deltaTime)) * velocity;
+
 
         // Check how much we are being pulled and whether we are secured
         velocity += QueryPullProviders();
@@ -139,22 +148,27 @@ public class PlayerLocomotion : LocomotionProvider
 
         IsBodyMoved = velocity.magnitude > 0f;
 
-        if (!isSecured && !wasRopeTaut) { 
+        if (!isSecured && IsGrounded) { 
             // Add a small amount of gravity
-            velocity -= Vector3.up * 0.01f * gravity * Time.deltaTime;
+            velocity -= Vector3.up * 10f * gravity * Time.deltaTime;
         }
 
         Move();
 
         wasGrounded = IsGrounded;
         wasSecured = isSecured;
+
     }
+
+
 
     void CheckIfGrounded()
     {
+        slope.ScanFallRays(out floorNormal);
         bool isFlatGround = slope.ScanFallRays(out floorNormal);
-        IsGrounded = isFlatGround;
-    }
+        IsGrounded = isFlatGround && characterController.isGrounded;
+}
+
     void FireEvents()
     {
         if(!IsGrounded && !isSecured)
@@ -199,12 +213,14 @@ public class PlayerLocomotion : LocomotionProvider
     void Fall()
     {
         Vector3 gravityIncrement = floorNormal.normalized;
+        gravityIncrement.y = Mathf.Clamp(gravityIncrement.y, -1f, -0.1f);
+
         bool isRopeTaut = rope.IsRopeTaut();
         if (isRopeTaut) { 
             gravityIncrement = (rope.GetFallTowardsPoint() - playerCenterOfGravity.position);
             if (!wasRopeTaut) { 
                 // We were just caught in the rope, redirect some of the existing velocity
-                cumulativeGravity = gravityIncrement.normalized * cumulativeGravity.magnitude;
+                //cumulativeGravity = gravityIncrement.normalized * cumulativeGravity.magnitude;
                 // But absorb all prior vertical velocity
                 cumulativeGravity.y = 0f;
             }

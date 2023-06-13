@@ -16,6 +16,10 @@ public class Break : MonoBehaviour
     [SerializeField] float maxXAngle;
     [SerializeField] float minXAngle;
 
+    [ShowOnly][SerializeField]
+    public bool BreakEngaged;
+
+    public int ManualEngageBreak { get; set; } = 0;
     public bool ManualReleaseBreak { get; set; }
 
     // Update is called once per frame
@@ -39,8 +43,21 @@ public class Break : MonoBehaviour
         breakingDeviceModel.transform.position = rotation * offsetPosition + hingePoint.position;
         breakingDeviceModel.transform.rotation = rotation;
 
-        // Lock the break if the rope is above, unless we are activated
-        rope.IsExtendingRope = ManualReleaseBreak || towardsPosition.y < transform.position.y;
+        // Lock the break if the rope is above, unless we are manually activated or deactivated
+        if (ManualEngageBreak>0)
+        {
+            BreakEngaged = true;
+        }
+        else if (ManualReleaseBreak)
+        {
+            BreakEngaged = false;
+        }
+        else
+        {
+            BreakEngaged = towardsPosition.y > transform.position.y;
+        }
+        
+        rope.IsExtendingRope = !BreakEngaged;
     }
 
 

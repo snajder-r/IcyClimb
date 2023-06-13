@@ -17,8 +17,8 @@ public class KeepLocalOffset : MonoBehaviour
     void Update()
     {
         // Follow Y rotation only
-        Vector3 forward = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
-        transform.rotation = Quaternion.LookRotation(forward);
+        Vector3 forward = Vector3.ProjectOnPlane(transform.parent.forward, Vector3.up);
         transform.position = transform.parent.position + offset;
+        transform.rotation = Quaternion.LookRotation(forward);
     }
 }

@@ -134,7 +134,7 @@ public class ChainLink : MonoBehaviour
     Vector3 ComputeForce(ChainLink toLink)
     {
         Vector3 force = transform.position - toLink.transform.position;
-        force *= elasticity * Time.deltaTime;
+        force *= elasticity;
         return force;
     }
 

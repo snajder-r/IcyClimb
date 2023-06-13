@@ -13,6 +13,8 @@ public class RopeManipulation : DropablePully
     [field:SerializeField] public ChainLink ManipulatorChainLink { get; private set; }
 
     [SerializeField] private XRBaseInteractor hand;
+    [SerializeField] private Rope rope;
+    [SerializeField] private Break belayDevice;
 
     private ChainLink closestPredecessorLink;
 
@@ -20,7 +22,7 @@ public class RopeManipulation : DropablePully
     public override Vector3 GetPull() => pull;
 
     // Holding a rope does not secure you against gravity
-    public override bool IsSecured() => false;
+    public override bool IsSecured() => isSelected && rope.IsRopeTaut();
 
     public override void OnOutOfStamina() {
         ForceRelease(1f);
@@ -125,6 +127,9 @@ public class RopeManipulation : DropablePully
         ManipulatorChainLink.gameObject.SetActive(true);
         // Attach our manipulator link between the two closest links
         closestPredecessorLink.InsertAfter(ManipulatorChainLink);
+
+        // Tell the rope to not extend while we are pulling ourselves
+        belayDevice.ManualEngageBreak += 1;
     }
 
     private void ReconnectLinksAroundManipulator()
@@ -138,6 +143,7 @@ public class RopeManipulation : DropablePully
         ManipulatorChainLink.gameObject.SetActive(false);
         // Reconnect the other two chain links
         ReconnectLinksAroundManipulator();
+        belayDevice.ManualEngageBreak -= 1;
     }
 
     /// <summary>

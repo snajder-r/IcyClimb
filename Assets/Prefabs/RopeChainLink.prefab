@@ -80,7 +80,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   <previousLink>k__BackingField: {fileID: 0}
   <nextLink>k__BackingField: {fileID: 0}
-  elasticity: 200
+  elasticity: 2.75
   isSpawnerBefore: 0
   isSpawnerAfter: 0
   spawnForce: Infinity
@@ -118,7 +118,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7882693689223503924}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1

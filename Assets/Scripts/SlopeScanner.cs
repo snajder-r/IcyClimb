@@ -14,8 +14,16 @@ public class SlopeScanner : MonoBehaviour
     LayerMask floorLayerMask;
 
     [SerializeField]
+    Transform yTransform;
+
+    [SerializeField]
     float floorAngleSlipping = 95f;
 
+
+    void Update()
+    {
+        transform.position = new Vector3(transform.position.x, yTransform.position.y + 0.1f, transform.position.z);
+    }
 
     /// <param name="floorNormal">
     /// Returns the average floor normal below the player based on a 
@@ -33,7 +41,7 @@ public class SlopeScanner : MonoBehaviour
         {
             RaycastHit hit;
             Vector3 normal = -Vector3.up;
-            if (Physics.Raycast(transform.position, offset, out hit, 2f, floorLayerMask))
+            if (Physics.Raycast(transform.position, offset, out hit, 0.2f, floorLayerMask))
             {
                 normal = hit.normal;
             }

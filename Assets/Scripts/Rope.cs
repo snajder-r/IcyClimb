@@ -18,7 +18,8 @@ public class Rope : MonoBehaviour
     [SerializeField] float ropeExtensionIncrement;
     
 
-    public float RopeExtension { get; private set; }
+    [field:SerializeField]
+    public float RopeExtension { get; set; }
     
     private Stack<WallAnchor> securedWallAnchors;
 
@@ -44,6 +45,11 @@ public class Rope : MonoBehaviour
     {
         if (IsExtendingRope) {
             RopeExtension = ComputeRopeLength() + ropeExtensionIncrement;
+        }
+        else
+        {
+            //If we are not extending, we are still tightening
+            RopeExtension = Mathf.Min(RopeExtension, ComputeRopeLength());
         }
     }
 
