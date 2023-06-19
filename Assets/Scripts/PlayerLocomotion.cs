@@ -152,12 +152,14 @@ public class PlayerLocomotion : LocomotionProvider
             // Add a small amount of gravity
             velocity -= Vector3.up * 10f * gravity * Time.deltaTime;
         }
+    }
 
+    void LateUpdate()
+    {
         Move();
 
         wasGrounded = IsGrounded;
         wasSecured = isSecured;
-
     }
 
 
@@ -212,7 +214,7 @@ public class PlayerLocomotion : LocomotionProvider
 
     void Fall()
     {
-        Vector3 gravityIncrement = floorNormal.normalized;
+        Vector3 gravityIncrement = floorNormal;
         gravityIncrement.y = Mathf.Clamp(gravityIncrement.y, -1f, -0.1f);
 
         bool isRopeTaut = rope.IsRopeTaut();
@@ -255,12 +257,12 @@ public class PlayerLocomotion : LocomotionProvider
     {
         if (!CanBeginLocomotion()) return;
         if (!BeginLocomotion()) return;
-        Vector3 euler = Vector3.up * turnInput.x * Time.deltaTime * turnSpeed;
-        cameraOffset.rotation *= Quaternion.Euler(euler);
+        float turnAngle = turnInput.x * Time.deltaTime * turnSpeed;
+        origin.RotateAroundCameraUsingOriginUp(turnAngle);
         EndLocomotion();
 
         // If we had controller input induced turn, treat it as a turn of the body
-        IsBodyTurned = IsBodyTurned || euler.magnitude > 0f;
+        IsBodyTurned = IsBodyTurned || ! Mathf.Approximately(turnAngle, 0f);
     }
 
     void ControllerMove()

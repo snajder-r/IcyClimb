@@ -24,12 +24,7 @@ public class BeltFollowPlayer : MonoBehaviour
     private bool m_NeedsRotation = false;
     private bool m_NeedsMove = false;
 
-    public void Start()
-    {
-
-    }
-
-    public void Update()
+    public void LateUpdate()
     {
         if (!m_NeedsRotation)
         {

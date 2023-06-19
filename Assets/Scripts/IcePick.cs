@@ -5,6 +5,8 @@ public class IcePick : LodgeAbleGrabbable
     [SerializeField] float PullSpeedModifier = 1f;
     public override bool IsSecured() => isLodged && isSelected;
 
+    IcePickTip icePickTip;
+
     /// <summary>
     /// The pull the axe currently exacts on the player. 
     /// </summary>
@@ -20,5 +22,17 @@ public class IcePick : LodgeAbleGrabbable
     void Start()
     {
         remainsLodgedIfReleased = false;
+        icePickTip = GetComponentInChildren<IcePickTip>();
+    }
+
+
+    public override bool Dislodge()
+    {
+        if (base.Dislodge())
+        {
+            icePickTip.OnDislodge();
+            return true;
+        }
+        return false;
     }
 }

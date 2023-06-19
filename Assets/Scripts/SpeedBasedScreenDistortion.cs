@@ -13,12 +13,16 @@ public class SpeedBasedScreenDistortion : MonoBehaviour
     [SerializeField] AudioSource audioSource;
     [SerializeField] AudioClip fallingWindSound;
     [SerializeField] float volumeMultiplier = 0.5f;
+    [SerializeField] int numberFramesForSmoothing;
+    [SerializeField] int minFramesToActivation;
 
+    [ShowOnly] [SerializeField] SmoothedVector3 smoothedChange;
     [ShowOnly] [SerializeField] float velocity;
     [ShowOnly] [SerializeField] float intensity;
+    
 
-    float lastDeltaTime;
     private Vector3 lastPosition;
+    private int numFramesActivated;
     private ChromaticAberration chromaticAberration;
     private LensDistortion lensDistortion;
     private MotionBlur motionBlur;
@@ -31,20 +35,30 @@ public class SpeedBasedScreenDistortion : MonoBehaviour
         postProcessingVolume.profile.TryGet<ChromaticAberration>(out chromaticAberration);
         postProcessingVolume.profile.TryGet<LensDistortion>(out lensDistortion);
         postProcessingVolume.profile.TryGet<MotionBlur>(out motionBlur);
+        smoothedChange = new SmoothedVector3(numberFramesForSmoothing, Vector3.zero, MODE.MedianMagnitude);
         lastPosition = player.position;
-        lastDeltaTime = Time.deltaTime;
     }
 
     
-    void Update()
+    void LateUpdate()
     {
-        velocity = (player.position - lastPosition).magnitude / lastDeltaTime;
+        smoothedChange.Add((player.position - lastPosition) / Time.deltaTime);
+        velocity = smoothedChange.Mean.magnitude;
 
-        if (velocity > minSpeed) { 
-            intensity = Mathf.InverseLerp(minSpeed, maxSpeed, velocity);
+        if (velocity > minSpeed) {
+            numFramesActivated += 1;
+            if(numFramesActivated > minFramesToActivation)
+            {
+                intensity = Mathf.InverseLerp(minSpeed, maxSpeed, velocity);
+            }
+            else
+            {
+                intensity = 0f;
+            }
         }
         else
         {
+            numFramesActivated = 0;
             intensity = 0f;
         }
 
@@ -59,7 +73,6 @@ public class SpeedBasedScreenDistortion : MonoBehaviour
             EndFallingSound();
         }
 
-        lastDeltaTime = Time.deltaTime;
         lastPosition = player.position;
     }
 

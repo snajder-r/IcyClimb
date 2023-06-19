@@ -19,6 +19,14 @@ public class SlopeScanner : MonoBehaviour
     [SerializeField]
     float floorAngleSlipping = 95f;
 
+    [SerializeField] 
+    float angle;
+
+    [SerializeField]
+    float rayLength;
+
+    [ShowOnly][SerializeField] Vector3 lastScannedNormal;
+    [ShowOnly] [SerializeField] float lastScannedAngle;
 
     void Update()
     {
@@ -41,15 +49,16 @@ public class SlopeScanner : MonoBehaviour
         {
             RaycastHit hit;
             Vector3 normal = -Vector3.up;
-            if (Physics.Raycast(transform.position, offset, out hit, 0.2f, floorLayerMask))
+            if (Physics.Raycast(transform.position, offset, out hit, rayLength, floorLayerMask))
             {
                 normal = hit.normal;
             }
             normalSum += normal;
         }
         floorNormal = normalSum / fallRays.Length;
-
+        lastScannedNormal = floorNormal;
         float floorAngle = Vector3.Dot(floorNormal, Vector3.up);
+        lastScannedAngle = Mathf.Acos(floorAngle) * Mathf.Rad2Deg;
         return Mathf.Acos(floorAngle) * Mathf.Rad2Deg <= floorAngleSlipping;
     }
 
@@ -62,9 +71,10 @@ public class SlopeScanner : MonoBehaviour
     {
         float stepDegrees = 360f / numberOfRays;
         List<Vector3> rays = new List<Vector3>();
-        Quaternion rotation = Quaternion.AngleAxis(30f, Vector3.up);
+        Quaternion rotation = Quaternion.AngleAxis(stepDegrees, Vector3.up);
         //Start with one ray, and then rotate it around the y axis to create a higher resolution scan
-        rays.Add(new Vector3(0.1f, -0.1f, 0f));
+        Vector3 direction = Quaternion.AngleAxis(angle, Vector3.forward) * (-Vector3.up);
+        rays.Add(direction);
         for (int i = 1; i < 360f / stepDegrees; i++)
         {
             rays.Add(rotation * rays[rays.Count - 1]);

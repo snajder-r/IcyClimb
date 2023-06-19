@@ -13,13 +13,16 @@ public class Cliff : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("IcePickTip"))
-        {
-            other.GetComponent<IcePickTip>().OnWallCollisionEnter(cliffCollider);
-        }
-        if (other.CompareTag("WallAnchor"))
-        {
-            other.GetComponent<WallAnchor>().OnWallCollisionEnter(cliffCollider);
+        foreach(Component component in other.GetComponents<Component>()){
+            if(component is IWallTriggerCollider)
+            {
+                ((IWallTriggerCollider) component).OnWallCollisionEnter(cliffCollider);
+            }
         }
     }
+}
+
+public interface IWallTriggerCollider
+{
+    public void OnWallCollisionEnter(Collider cliff);
 }

@@ -16,6 +16,19 @@ public abstract class LodgeAbleGrabbable : DropablePully
     /// </summary>
     [SerializeField] public bool isLodged;
 
+    public override bool IsSelectableBy(IXRSelectInteractor interactor)
+    {
+        if (isLodged)
+        {
+            if(interactor is XRSocketInteractor)
+            {
+                // Don't accidentally get pulled into a socket while lodged!
+                return false;
+            }
+        }
+        return base.IsSelectableBy(interactor);
+    }
+
     public void SendHapticImpulse(float intensity, float duration)
     {
         if (heldController)
@@ -97,22 +110,12 @@ public abstract class LodgeAbleGrabbable : DropablePully
         return true;
     }
 
-    protected override void OnSelectEntered(SelectEnterEventArgs args)
-    {
-        base.OnSelectEntered(args);
 
-        // Store which controller holds it, in order to use haptics
-        if (args.interactorObject is XRBaseControllerInteractor)
-        {
-            heldController = ((XRBaseControllerInteractor)args.interactorObject).xrController;
-            heldController.SendHapticImpulse(0.5f, 0.1f);
-        }
-    }
 
     protected override void OnSelectExited(SelectExitEventArgs args)
     {
         base.OnSelectExited(args);
-        Invoke("GoBackToHolster", 3f);
+        Invoke("GoBackToHolster", 1.1f);
     }
 
     protected override void OnActivated(ActivateEventArgs args)
@@ -151,7 +154,7 @@ public abstract class DropablePully : DropableGrabable, IPullProvider
 
 }
 
-public abstract class DropableGrabable : XRGrabInteractable
+public class DropableGrabable : XRGrabInteractable
 {
     protected XRBaseController heldController;
 
@@ -178,7 +181,6 @@ public abstract class DropableGrabable : XRGrabInteractable
         Invoke("ReenableGrab", renableInSeconds);
     }
 
-
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
         base.OnSelectEntered(args);
@@ -199,6 +201,17 @@ public abstract class DropableGrabable : XRGrabInteractable
         {
             // If it was deselected from hand (not from the holster)
             heldController = null;
+        }
+    }
+
+    protected override void OnHoverEntered(HoverEnterEventArgs args)
+    {
+        base.OnHoverEntered(args);
+
+        if (args.interactorObject is XRBaseControllerInteractor)
+        {
+            XRBaseController controller = ((XRBaseControllerInteractor)args.interactorObject).xrController;
+            controller.SendHapticImpulse(0.15f, 0.075f);
         }
     }
 

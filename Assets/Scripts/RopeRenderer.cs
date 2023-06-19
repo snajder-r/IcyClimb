@@ -18,7 +18,7 @@ public class RopeRenderer : MonoBehaviour
         trail.bounds = new Bounds(Vector3.zero, Vector3.one * 1000);
     }
 
-    void Update()
+    void LateUpdate()
     {
         RenderRope();
 

@@ -5046,7 +5046,10 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 832245707582c58478ffed0f900dbe93, type: 3}
   - {fileID: 8300000, guid: f2fbac46a0c129944859b6f88ff6f895, type: 3}
   - {fileID: 8300000, guid: 473497b5689aa0b4585c4d74dad7d3f9, type: 3}
+  dislodgeSound: []
   minimumIcePenetrationVelocity: 2
+  maxAngleBetweenTipAndWall: 45
+  TipVelocitySmoothing: 0
 --- !u!1 &1316220693
 GameObject:
   m_ObjectHideFlags: 0
@@ -5151,7 +5154,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1691472191599328068}
   m_LocalRotation: {x: -0.6963643, y: -0.6963643, z: -0.122787856, w: -0.122787856}
-  m_LocalPosition: {x: -0.1312, y: 0, z: 0.012}
+  m_LocalPosition: {x: -0.1339, y: 0, z: 0.0196}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5407,4 +5410,8 @@ MonoBehaviour:
   m_StartingSingleGrabTransformers: []
   m_StartingMultipleGrabTransformers: []
   m_AddDefaultGrabTransformers: 1
-  holster: {fileID: 0}
+  handSlipSound: []
+  returnToHolsterList: []
+  remainsLodgedIfReleased: 0
+  isLodged: 0
+  PullSpeedModifier: 1

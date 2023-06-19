@@ -70,7 +70,7 @@ public class ChainLink : MonoBehaviour
 
     protected void Awake() => Start();
 
-    private void Update()
+    private void FixedUpdate()
     {
         if (linkRigidBody.isKinematic)
         {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 
-public class IcePickTip : MonoBehaviour
+public class IcePickTip : MonoBehaviour, IWallTriggerCollider
 {
     [SerializeField] AudioClip[] penetrateIceSounds;
     [SerializeField] AudioClip[] dislodgeSound;

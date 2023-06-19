@@ -1,6 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEditor.Animations;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.XR.Interaction.Toolkit;
@@ -11,12 +8,18 @@ public class Hand : XRDirectInteractor, IPullProvider
     [SerializeField] Animator animator;
     [SerializeField] float maxStamina;
     [SerializeField] float staminaRegeneration;
+    [SerializeField] float staminaBoostIncrement;
+    [SerializeField] float staminaBoostCooldownTime;
     [SerializeField] float pullStrength = 1f;
-
+    
     [Tooltip("Pulling will slow down to zero as the distance from the hand to the PlayerController object reaches this distance (note that this may be the hand-to-feet distance)")]
     [SerializeField] float maxHandDistance;
 
     [SerializeField] UnityEvent<float> staminaChanged;
+
+    [SerializeField] ParticleSystem staminaBoostEffect;
+
+    Cooldown staminaBoostCooldown;
 
     float _stamina;
     [SerializeField]
@@ -31,13 +34,17 @@ public class Hand : XRDirectInteractor, IPullProvider
     private DropablePully heldPully;
     public Vector3 GetPull()
     {
-        if (heldPully is null) return Vector3.zero;
+        Vector3 ret = Vector3.zero;
+        if (heldPully is null) return ret;
         // Reduce stamina any time Pull is queried
-        Vector3 ret = heldPully.GetPull() * pullStrength;
-        stamina -= ret.magnitude * Time.deltaTime;
-        ret *= GetStretchingPullSpeed();
+        Vector3 pullyPull = heldPully.GetPull() * pullStrength;
+        stamina -= pullyPull.magnitude * Time.deltaTime;
+        pullyPull *= GetStretchingPullSpeed();
+        ret += pullyPull;
         return ret;
     }
+
+
 
     float GetStretchingPullSpeed()
     {
@@ -56,12 +63,14 @@ public class Hand : XRDirectInteractor, IPullProvider
     {
         base.Awake();
         stamina = maxStamina;
+        staminaBoostCooldown = new Cooldown(staminaBoostCooldownTime);
     }
-    
+   
     void Update()
     {
         if (heldPully is null && stamina < maxStamina)
         {
+            
             stamina += staminaRegeneration * Time.deltaTime;
         }
 
@@ -102,4 +111,19 @@ public class Hand : XRDirectInteractor, IPullProvider
     {
         if (heldPully) heldPully.OnOutOfStamina();
     }
+
+    public void StaminaBoost()
+    {
+        // No need to regenerate if we are nearly full
+        if (stamina > maxStamina - staminaBoostIncrement * 0.5f) return;
+
+        // Can't regenerate if we are holding something
+        if (heldPully) return;
+
+        if (staminaBoostCooldown.Acquire()) { 
+            stamina += staminaBoostIncrement;
+            staminaBoostEffect.Play();
+        }
+    }
+
 }

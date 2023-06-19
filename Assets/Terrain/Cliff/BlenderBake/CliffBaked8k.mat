@@ -13,7 +13,6 @@ Material:
   - _DETAIL_SCALED
   - _METALLICSPECGLOSSMAP
   - _NORMALMAP
-  - _OCCLUSIONMAP
   - _RECEIVE_SHADOWS_OFF
   m_InvalidKeywords: []
   m_LightmapFlags: 4
@@ -31,7 +30,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
-        m_Texture: {fileID: 2800000, guid: b43a7f3d5fb4945429aa96e8e1c3449c, type: 3}
+        m_Texture: {fileID: 2800000, guid: aed14e8c3223cad408c554baa601f7b6, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
@@ -59,7 +58,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
-        m_Texture: {fileID: 2800000, guid: 7b9c6eed099c1ee4babc72e9453780e5, type: 3}
+        m_Texture: {fileID: 2800000, guid: 4a15c1b94a8655b4d933df439fdb2c81, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _ParallaxMap:
@@ -99,8 +98,8 @@ Material:
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _Metallic: 0
-    - _OcclusionStrength: 0.575
-    - _Parallax: 0.0152
+    - _OcclusionStrength: 1
+    - _Parallax: 0.08
     - _QueueOffset: 0
     - _ReceiveShadows: 0
     - _Smoothness: 0.423

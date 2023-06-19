@@ -1,32 +1,50 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 
-public class WallAnchor : LodgeAbleGrabbable
+public class WallAnchor : LodgeAbleGrabbable, IWallTriggerCollider
 {
     [SerializeField] Transform ropeAttachPoint;
-    
+    [SerializeField] AudioClip lodgeSound;
+    [SerializeField] AudioClip dislodgeSound;
+
     Rope rope;
 
     public ChainLink link { get; private set; }
-    
 
     public override Vector3 GetPull() => Vector3.zero;
 
     public override bool IsSecured() => false;
 
+    private AudioSource audioSource;
+
     void Start()
     {
         rope = Rope.instance;
         remainsLodgedIfReleased = true;
+        audioSource = GetComponent<AudioSource>();
     }
 
     public void OnWallCollisionEnter(Collider cliff)
     {
         // It can only be lodged by hand
         if (heldController == null) return;
-        Lodge();
+        if (Lodge())
+        {
+            PlayLodgeSound();
+        }
+    }
+
+    private void PlayLodgeSound()
+    {
+        audioSource.PlayOneShot(lodgeSound);
+    }
+
+    private void PlayDisLodgeSound()
+    {
+        audioSource.PlayOneShot(dislodgeSound);
     }
 
     public override bool Dislodge()
@@ -45,7 +63,12 @@ public class WallAnchor : LodgeAbleGrabbable
                 return false;
             }
         }
-        return base.Dislodge();
+        if (base.Dislodge())
+        {
+            PlayDisLodgeSound();
+            return true;
+        }
+        return false;
     }
 
     public void DisconnectRope()
@@ -90,6 +113,8 @@ public class WallAnchor : LodgeAbleGrabbable
         //Tell the player that we are secured
         rope.WallAnchorSecured(this);
     }
+
+    
 
 
 }
