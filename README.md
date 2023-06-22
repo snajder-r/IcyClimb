@@ -76,6 +76,37 @@ What it is: This is just be blowing into the microphone. Aside from general pitc
 
 ### Locomotion
 
+There are three ways in which the player can move:
+* Controller input: continuous movement and turning
+* Pulling: The player can use the ice picks, lodge them in the wall, and then pull (or push) themselves to (from) the picks. 
+The same principle of movement can also be used with rope. A player can grab the rope and pull themselves towards where they grabbed the rope. 
+This can be done with both hands - also simultaneously.
+* Falling: If the player stands on a slope, the player will slide down the slope. 
+If the player does not have solid ground beneath their feet, they will also fall. 
+However, the rope secures the player, so the player must fall as one would expect when secured with a rope.
+That is to say, the player cannot overstretch the rope when falling and must "pendulum" towards the point where the rope would rest.
+
+Since these three forms of movement are also highly connected, I implemented a single dedicated LocomotionProvider which implements all these features. 
+
+At the basis for pulling movement is the `IPullProvider` interface, which provides the direction and strenght of pull, as well as whether this pull provider is strong enough to ignore gravity.
+For example, lodging an ice pick into ice and pulling yourself towards it, does not initiate a fall.
+However, grabbing the rope while climbing lead should still initiate a fall.
+
+Whether or not a player falls is determined through a combination of the `CharacterController`'s `IsGrounded`, as well as an extra `SlopeScanner` I implemented to determine how even the ground is.
+
+![Slope scanner](DevLog/slope_scanner.png)
+
+The `SlopeScanner` emits a number of Rays diagonally in a circle around the player's feet. 
+For each ray, the normal of the terrain is evaluated and an average normal is computed. 
+The angle between the UP vector and the average normal is then used to determine whether the player can continue to move or will fall.
+Furthermore, the average normal will be used to determine fall direction, such that players will fall away from the wall (in addition to gravity pulling them down), thus causing the player to slide.
+
+A player can also lodge a wall anchor in the wall and secure the rope in it. 
+When a player falls or is about to fall, the game computes the distance between the player and the wall anchor in order determine how much "rope" the player has. 
+Like with a real belay device, the belay device at top of the belt "locks" the rope lenght when the player falls (when the rope comes out the top of the belay device).
+
+![Slope scanner](DevLog/falling.png)
+
 ### Blindfold shader
 
 ### Rope physics

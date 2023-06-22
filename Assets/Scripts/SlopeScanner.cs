@@ -9,7 +9,7 @@ using UnityEngine.Serialization;
 public class SlopeScanner : MonoBehaviour
 {
     // Raycastings used to determine whether we should fall
-    Vector3[] fallRays;
+    Vector3[] _fallRays;
 
     [SerializeField, Tooltip("Number of raycasts which should be performed in a circle around this object")]
     int _numberOfRays;
@@ -37,6 +37,8 @@ public class SlopeScanner : MonoBehaviour
     void Update()
     {
         transform.position = new Vector3(transform.position.x, _yTransform.position.y + 0.1f, transform.position.z);
+
+
     }
 
     /// <param name="floorNormal">
@@ -50,21 +52,53 @@ public class SlopeScanner : MonoBehaviour
     /// </returns>
     public bool ScanFallRays(out Vector3 floorNormal)
     {
+        Gradient gradient;
+        GradientColorKey[] colorKey;
+        GradientAlphaKey[] alphaKey;
+        gradient = new Gradient();
+
+        // Populate the color keys at the relative time 0 and 1 (0 and 100%)
+        colorKey = new GradientColorKey[2];
+        colorKey[0].color = Color.green;
+        colorKey[0].time = 0f;
+        colorKey[1].color = Color.red;
+        colorKey[1].time = 1f;
+
+        // Populate the alpha  keys at relative time 0 and 1  (0 and 100%)
+        alphaKey = new GradientAlphaKey[2];
+        alphaKey[0].alpha = 1.0f;
+        alphaKey[0].time = 0f;
+        alphaKey[1].alpha = 1.0f;
+        alphaKey[1].time = 1f;
+
+        gradient.SetKeys(colorKey, alphaKey);
+
         Vector3 normalSum = Vector3.zero;
-        foreach (Vector3 offset in fallRays)
+        foreach (Vector3 offset in _fallRays)
         {
             Vector3 normal = -Vector3.up;
+            
+
             if (Physics.Raycast(transform.position, offset, out RaycastHit hit, _rayLength, _floorLayerMask))
             {
                 normal = hit.normal;
+
+                float tmpangle = Vector3.Dot(normal, Vector3.up);
+                tmpangle = Mathf.Acos(tmpangle) * Mathf.Rad2Deg;
+                tmpangle = tmpangle / _floorAngleSlipping;
+                Debug.DrawLine(transform.position, hit.point, gradient.Evaluate(tmpangle));
+            }
+            else
+            {
+                Debug.DrawLine(transform.position, transform.position + offset * _rayLength, gradient.Evaluate(0f));
             }
             normalSum += normal;
         }
-        floorNormal = normalSum / fallRays.Length;
+        floorNormal = normalSum / _fallRays.Length;
         _lastScannedNormal = floorNormal;
         float floorAngle = Vector3.Dot(floorNormal, Vector3.up);
         _lastScannedAngle = Mathf.Acos(floorAngle) * Mathf.Rad2Deg;
-        return Mathf.Acos(floorAngle) * Mathf.Rad2Deg <= _floorAngleSlipping;
+        return _lastScannedAngle <= _floorAngleSlipping;
     }
 
     void Start()
@@ -79,11 +113,12 @@ public class SlopeScanner : MonoBehaviour
         Quaternion rotation = Quaternion.AngleAxis(stepDegrees, Vector3.up);
         //Start with one ray, and then rotate it around the y axis to create a higher resolution scan
         Vector3 direction = Quaternion.AngleAxis(_angle, Vector3.forward) * (-Vector3.up);
+
         rays.Add(direction);
         for (int i = 1; i < 360f / stepDegrees; i++)
         {
             rays.Add(rotation * rays[rays.Count - 1]);
         }
-        fallRays = rays.ToArray();
+        _fallRays = rays.ToArray();
     }
 }
