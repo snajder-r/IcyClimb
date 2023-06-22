@@ -78,18 +78,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bc02d7de353a86c40a1ccb7aa1648711, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  <previousLink>k__BackingField: {fileID: 0}
-  <nextLink>k__BackingField: {fileID: 0}
-  elasticity: 2.75
-  isSpawnerBefore: 0
-  isSpawnerAfter: 0
-  spawnForce: Infinity
-  deSpawnDistance: 0
-  newLinkPrefab: {fileID: 0}
-  linkSpawnCooldown: 1
-  wallLayerMask:
+  <PreviousLink>k__BackingField: {fileID: 0}
+  <NextLink>k__BackingField: {fileID: 0}
+  _elasticity: 2.75
+  _isSpawnerBefore: 0
+  _isSpawnerAfter: 0
+  _spawnDistance: Infinity
+  _deSpawnDistance: 0
+  _newLinkPrefab: {fileID: 0}
+  _linkSpawnCooldown: 1
+  _wallLayerMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
 --- !u!114 &3066998105817268107
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -102,7 +102,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5cc8726d5ed651a47838ff48f75b0e46, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minY: 0.05
+  _minY: 0
 --- !u!33 &5530532970327686082
 MeshFilter:
   m_ObjectHideFlags: 0

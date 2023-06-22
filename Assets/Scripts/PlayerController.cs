@@ -1,61 +1,61 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
+using UnityEngine.Serialization;
 
+/// <summary>
+/// Purpose of this behavior was to sort of remove locomotion-unrelated things from the player locomotion.
+/// In the end, not much was left, so this mostly just plays sounds
+/// </summary>
 public class PlayerController : MonoBehaviour
 {
-    public static PlayerController instance;
+    public static PlayerController Instance;
 
-    [SerializeField] public Transform playerCenterOfGravity;
-    [SerializeField] private PlayerLocomotion locomotion;
-    [SerializeField] private AudioClip[] slippingSound;
-    [SerializeField] private AudioClip[] landingSound;
-    [SerializeField] private AudioClip[] footstepSound;
+    public Transform PlayerCenterOfGravity;
 
+    [SerializeField] private PlayerLocomotion _locomotion;
+    [SerializeField, Tooltip("Sound played when losing your footing and starting to fall")] private AudioClip[] _slippingSound;
+    [SerializeField] private AudioClip[] _landingSound;
+    [SerializeField] private AudioClip[] _footstepSound;
 
     [Tooltip("This is where sounds like falling sounds will play")]
-    [SerializeField] private AudioSource feetAudio;
+    [SerializeField] private AudioSource _feetAudio;
 
-    private Vector3 lastPosition;
-    private float cumulativeMovement;
+    private Vector3 _lastPosition;
+    private float _cumulativeMovement;
 
-    private Cooldown slippingSoundCooldown;
-    private Cooldown landingSoundCooldown;
-
+    private Cooldown _slippingSoundCooldown;
+    private Cooldown _landingSoundCooldown;
     void Awake()
     {
-        instance = this;
-        lastPosition = transform.position;
+        Instance = this;
+        _lastPosition = transform.position;
 
-        slippingSoundCooldown = new Cooldown(5f);
-        landingSoundCooldown = new Cooldown(5f);
-
+        _slippingSoundCooldown = new Cooldown(5f);
+        _landingSoundCooldown = new Cooldown(5f);
     }
 
-    // Update is called once per frame
     void Update()
     {
         PlayFootsteps();
     }
 
+    public void PlaySlippingSound() => PlayRandomSound(_slippingSound, _slippingSoundCooldown);
+    public void PlayLandingSound() => PlayRandomSound(_landingSound, _landingSoundCooldown);
     void PlayFootsteps()
     {
-        if (locomotion.IsGrounded)
+        if (_locomotion.IsGrounded)
         {
-            cumulativeMovement += (transform.position - lastPosition).magnitude;
-            if (cumulativeMovement > 0.75f)
+            // Play a footstep sound whenever we walked about 0.75 meters
+            _cumulativeMovement += (transform.position - _lastPosition).magnitude;
+            if (_cumulativeMovement > 0.75f)
             {
-                PlayRandomSound(footstepSound);
-                cumulativeMovement = 0f;
+                PlayRandomSound(_footstepSound);
+                _cumulativeMovement = 0f;
             }
         }
-        lastPosition = transform.position;
+        _lastPosition = transform.position;
     }
-
-
-    public void PlaySlippingSound() => PlayRandomSound(slippingSound, slippingSoundCooldown);
-    public void PlayLandingSound() => PlayRandomSound(landingSound, landingSoundCooldown);
     void PlayRandomSound(AudioClip[] sounds) => PlayRandomSound(sounds, null);
     void PlayRandomSound(AudioClip[] sounds, Cooldown cooldown)
     {
@@ -64,6 +64,6 @@ public class PlayerController : MonoBehaviour
             if (!cooldown.Acquire()) return;
         }
         int index = Random.Range(0, sounds.Length);
-        feetAudio.PlayOneShot(sounds[index]);
+        _feetAudio.PlayOneShot(sounds[index]);
     }
 }

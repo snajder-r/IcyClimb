@@ -1,166 +1,234 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
+/// <summary>
+/// A ChainLink is a custom hinge-like structure used to represent a rope or chain of variable length.
+/// </summary>
 [RequireComponent(typeof(Rigidbody))]
 public class ChainLink : MonoBehaviour
 {
-    [field: SerializeField] public ChainLink previousLink { get; private set; }
-    [field: SerializeField] public ChainLink nextLink { get; private set; }
-    [SerializeField] float elasticity;
+    [field: Tooltip("Previous chainLink in the chain. If left null, it is set automatically be the next link, or it may remain null if this is the first link.")]
+    [field: SerializeField]
+    public ChainLink PreviousLink { get; private set; }
+
+    [field: Tooltip("Next chainLink in the chain. Can be null if this is the last link")]
+    [field: SerializeField]
+    public ChainLink NextLink { get; private set; }
+
+    [Tooltip("Force used to pull connected chain links towards me (both the previous and the next link).")]
+    [SerializeField, FormerlySerializedAs("elasticity")]
+    float _elasticity;
 
     [Header("Link replication")]
-    [SerializeField] bool isSpawnerBefore = false;
-    [SerializeField] bool isSpawnerAfter = false;
+    [SerializeField]
+    bool _isSpawnerBefore = false;
+    [SerializeField]
+    bool _isSpawnerAfter = false;
     [Tooltip("Distance from the next link at which we will spawn a new link. Infinity if no spawning is desired.")]
-    [SerializeField] float spawnForce = float.PositiveInfinity;
-    [SerializeField] float deSpawnDistance = 0f;
+    [SerializeField]
+    float _spawnDistance = float.PositiveInfinity;
+    [SerializeField]
+    [Tooltip("This link will despawn if the next link is closer than this")]
+    float _deSpawnDistance = 0f;
     [Tooltip("Template for new links. If none provided a copy of the next link will be created.")]
-    [SerializeField] private GameObject newLinkPrefab;
-    [SerializeField] private float linkSpawnCooldown = 1f;
-    [SerializeField] private LayerMask wallLayerMask;
+    [SerializeField]
+    GameObject _newLinkPrefab;
+    [SerializeField]
+    float _linkSpawnCooldown = 1f;
+    [Tooltip("Layer mask defining what constitutes an obstruction for the rope. The rope will try not to spawn new nodes inside a wall.")]
+    [SerializeField]
+    LayerMask _wallLayerMask;
 
-    private Rigidbody linkRigidBody;
-    private float currentLinkSpawnCooldown = 0f;
+    Rigidbody _linkRigidBody;
 
+    float _currentLinkSpawnCooldown = 0f;
 
-    public static void InsertBetween(ChainLink insert, ChainLink before, ChainLink after)
-    {
-        insert.nextLink = after;
-        insert.previousLink = before;
-        after.previousLink = insert;
-        before.nextLink = insert;
-    }
-
-    public bool InsertAfter(ChainLink insert)
-    {
-        if (!nextLink) return false;
-        InsertBetween(insert, this, nextLink);
-        return true;
-    }
-
-    public bool InsertBefore(ChainLink insert)
-    {
-        if (!previousLink) return false;
-        InsertBetween(insert, previousLink, this);
-        return true;
-    }
-
-    public void DisconnectSelf() => DisconnectSelf(true);
-    public void DisconnectSelf(bool informNeighbors)
-    {
-        if (informNeighbors) { 
-            if (previousLink) previousLink.nextLink = nextLink;
-            if (nextLink) nextLink.previousLink = previousLink;
-        }
-        nextLink = null;
-        previousLink = null;
-    }
 
     public void Start()
     {
-        linkRigidBody = GetComponent<Rigidbody>();
+        _linkRigidBody = GetComponent<Rigidbody>();
 
-        if (nextLink && !nextLink.previousLink)
+        if (NextLink && !NextLink.PreviousLink)
         {
             // If editor only defined the next link, let's inform our next link that we are here
-            nextLink.previousLink = this;
+            NextLink.PreviousLink = this;
         }
     }
 
+    // Probably unnecessary, but at some point I think this solved some problem. Scared to remove it now.
     protected void Awake() => Start();
 
     private void FixedUpdate()
     {
-        if (linkRigidBody.isKinematic)
+        if (_linkRigidBody.isKinematic)
         {
-            if (nextLink)
+            if (NextLink)
             {
-                // Kinematic nodes start forward propagation
-                nextLink.Forward(ComputeForce(nextLink));
+                // Kinematic nodes start forward propagation of force
+                NextLink.Forward(ComputeForce(NextLink));
             }
-            if (previousLink)
+            if (PreviousLink)
             {
-                // Kinematic nodes start backward propagation
-                previousLink.Backward(ComputeForce(previousLink));
+                // Kinematic nodes start backward propagation of force
+                PreviousLink.Backward(ComputeForce(PreviousLink));
             }
         }
 
-        if (!linkRigidBody.isKinematic)
+        if (!_linkRigidBody.isKinematic)
         {
             // Only non-kinematic spawns can destroy itself
             DespawnIfTooCloseToNeighbors();
         }
     }
 
-    public void Forward(Vector3 force)
+    /// <summary>
+    /// Insert a new chain link between two existing links
+    /// </summary>
+    /// <param name="insert"> The link to insert </param>
+    /// <param name="before"> The link after which we want to insert </param>
+    /// <param name="after"> The link before which we want to insert </param>
+    public static void InsertBetween(ChainLink insert, ChainLink before, ChainLink after)
     {
-        if (!linkRigidBody.isKinematic)
+        insert.NextLink = after;
+        insert.PreviousLink = before;
+        after.PreviousLink = insert;
+        before.NextLink = insert;
+    }
+
+    /// <summary>
+    /// Insert a new link after this link. Will fail if this is the last link, 
+    /// as the current implementation doesn't support insertion of dangling links
+    /// </summary>
+    /// <param name="insert"> The link to insert </param>
+    /// <returns> Whether insertion was successful </returns>
+    public bool InsertAfter(ChainLink insert)
+    {
+        if (!NextLink) return false;
+        InsertBetween(insert, this, NextLink);
+        return true;
+    }
+
+    /// <summary>
+    /// Insert a new link before this link. Will fail if this is the first link, 
+    /// as the current implementation doesn't support insertion of dangling links
+    /// </summary>
+    /// <param name="insert"> The link to insert </param>
+    /// <returns> Whether insertion was successful </returns>
+    public bool InsertBefore(ChainLink insert)
+    {
+        if (!PreviousLink) return false;
+        InsertBetween(insert, PreviousLink, this);
+        return true;
+    }
+
+    /// <summary>
+    /// Disconnect self from the chain and reconnect the two neighboring links to each other
+    /// </summary>
+    public void DisconnectSelf() => DisconnectSelf(true);
+
+    /// <summary>
+    /// Disconnect self from the chain
+    /// </summary>
+    /// <param name="informNeighbors"> Whether neighboring links should be connected to each other to close the gap </param>
+    public void DisconnectSelf(bool informNeighbors)
+    {
+        if (informNeighbors)
         {
-            linkRigidBody.AddForce(force);
+            if (PreviousLink) PreviousLink.NextLink = NextLink;
+            if (NextLink) NextLink.PreviousLink = PreviousLink;
+        }
+        NextLink = null;
+        PreviousLink = null;
+    }
+
+
+    /// <summary>
+    /// Forward processing of chain physics.
+    /// Applies force from previous link, decides whether to spawn a new previous link, and then call forward on the next link.
+    /// </summary>
+    void Forward(Vector3 force)
+    {
+        if (!_linkRigidBody.isKinematic)
+        {
+            _linkRigidBody.AddForce(force);
         }
 
-
-        if (isSpawnerBefore && force.magnitude > spawnForce)
+        // If we are a link spawner, check if we should now spawn a new link before ourselves.
+        // Link spawning is organized in the forward/backward methods to make sure it happens in order and we don't accidentally
+        // spawn a link twice (once before and once after another link)
+        if (_isSpawnerBefore && force.magnitude > _spawnDistance)
         {
-            SpawnBetween(previousLink, this);
+            SpawnBetween(PreviousLink, this);
         }
 
         // Forward propagation ends when there is no next link
-        if (!nextLink) return;
+        if (!NextLink) return;
         // Kinematic nodes start propagation, they don't pass it on
-        if (linkRigidBody.isKinematic) return;
+        if (_linkRigidBody.isKinematic) return;
 
-        nextLink.Forward(ComputeForce(nextLink));
+        NextLink.Forward(ComputeForce(NextLink));
     }
 
-    public void Backward(Vector3 force)
+    /// <summary>
+    /// Backward processing of chain physics.
+    /// Applies force from next link, decides whether to spawn a new next link, and then call backward on the previous link.
+    /// </summary>
+    void Backward(Vector3 force)
     {
-        linkRigidBody.AddForce(force);
+        _linkRigidBody.AddForce(force);
 
-        if (isSpawnerAfter && force.magnitude > spawnForce)
+
+        // If we are a link spawner, check if we should now spawn a new link before ourselves.
+        // Link spawning is organized in the forward/backward methods to make sure it happens in order and we don't accidentally
+        // spawn a link twice (once before and once after another link)
+        if (_isSpawnerAfter && force.magnitude > _spawnDistance)
         {
-            SpawnBetween(this, nextLink);
+            SpawnBetween(this, NextLink);
         }
 
         // Backwards propagation ends when there is no previous link
-        if (!previousLink) return;
+        if (!PreviousLink) return;
         // Kinematic nodes start backward propagation, they don't pass it on
-        if (linkRigidBody.isKinematic) return;
+        if (_linkRigidBody.isKinematic) return;
 
-        previousLink.Backward(ComputeForce(previousLink));
+        PreviousLink.Backward(ComputeForce(PreviousLink));
     }
 
+    /// <summary>
+    /// Computes the force which pulls another link towards us.
+    /// </summary>
+    /// <param name="toLink">Which link to compute for</param>
+    /// <returns>The computed force as a vector</returns>
     Vector3 ComputeForce(ChainLink toLink)
     {
         Vector3 force = transform.position - toLink.transform.position;
-        force *= elasticity;
+        force *= _elasticity;
         return force;
     }
 
     void DespawnIfTooCloseToNeighbors()
     {
-        if (!nextLink || !previousLink) return;
+        if (!NextLink || !PreviousLink) return;
 
-        float distance = (previousLink.transform.position - transform.position).magnitude;
+        float distance = (PreviousLink.transform.position - transform.position).magnitude;
         // Don't despawn if I'm far enough away from previous node
-        if (distance >= deSpawnDistance) return;
+        if (distance >= _deSpawnDistance) return;
 
-        distance = (nextLink.transform.position - transform.position).magnitude;
+        distance = (NextLink.transform.position - transform.position).magnitude;
         // Don't despawn if I'm far enough away from next node
-        if (distance >= deSpawnDistance) return;
+        if (distance >= _deSpawnDistance) return;
 
-        previousLink.nextLink = nextLink;
-        nextLink.previousLink = previousLink;
+        PreviousLink.NextLink = NextLink;
+        NextLink.PreviousLink = PreviousLink;
         Destroy(gameObject);
     }
 
     void SpawnBetween(ChainLink before, ChainLink after)
     {
-        currentLinkSpawnCooldown -= Time.deltaTime;
+        _currentLinkSpawnCooldown -= Time.deltaTime;
 
         // Stop here if we are still waiting on the cooldown
-        if (currentLinkSpawnCooldown > 0f) return;
+        if (_currentLinkSpawnCooldown > 0f) return;
 
         Vector3 offset = after.transform.position - before.transform.position;
 
@@ -170,20 +238,18 @@ public class ChainLink : MonoBehaviour
         if (!CanLinkSeeSpawnPoint(before.transform.position, spawnPoint)) return;
         if (!CanLinkSeeSpawnPoint(after.transform.position, spawnPoint)) return;
 
-        ChainLink newLink = Instantiate(newLinkPrefab, spawnPoint, transform.rotation).GetComponent<ChainLink>();
+        ChainLink newLink = Instantiate(_newLinkPrefab, spawnPoint, transform.rotation).GetComponent<ChainLink>();
         newLink.Start();
         InsertBetween(newLink, before, after);
 
-        currentLinkSpawnCooldown = linkSpawnCooldown;
+        _currentLinkSpawnCooldown = _linkSpawnCooldown;
     }
 
     bool CanLinkSeeSpawnPoint(Vector3 positionA, Vector3 positionSpawn)
     {
-        Ray ray = new Ray(positionA, positionSpawn - positionA);
+        Ray ray = new(positionA, positionSpawn - positionA);
         float rayLength = (positionSpawn - positionA).magnitude;
-        return !Physics.Raycast(ray, rayLength, wallLayerMask.value);
+        return !Physics.Raycast(ray, rayLength, _wallLayerMask.value);
     }
-
-
 
 }

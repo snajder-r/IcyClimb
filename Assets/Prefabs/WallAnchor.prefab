@@ -213,13 +213,13 @@ MonoBehaviour:
   m_StartingSingleGrabTransformers: []
   m_StartingMultipleGrabTransformers: []
   m_AddDefaultGrabTransformers: 1
-  handSlipSound: []
-  returnToHolsterList: []
-  remainsLodgedIfReleased: 0
-  isLodged: 0
-  ropeAttachPoint: {fileID: 3698851163988274853}
-  lodgeSound: {fileID: 8300000, guid: 99318d8c5390a314bbf7c7d5cfea4c80, type: 3}
-  dislodgeSound: {fileID: 8300000, guid: c38d86da35dd73244ad1e9241d68a034, type: 3}
+  _handSlipSound: []
+  IsLodged: 0
+  _returnToHolsterList: []
+  _remainsLodgedIfReleased: 0
+  _ropeAttachPoint: {fileID: 3698851163988274853}
+  _lodgeSound: {fileID: 8300000, guid: 99318d8c5390a314bbf7c7d5cfea4c80, type: 3}
+  _dislodgeSound: {fileID: 8300000, guid: c38d86da35dd73244ad1e9241d68a034, type: 3}
 --- !u!65 &7310202676261742579
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -554,10 +554,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1b4c6a05be94ee341b4f868e54993144, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  componentToHide: {fileID: 8045916875805916669}
-  mainCamera: {fileID: 0}
-  minDistance: 35
-  wallMask:
+  _componentToHide: {fileID: 8045916875805916669}
+  _mainCamera: {fileID: 0}
+  _minDistance: 50
+  _wallMask:
     serializedVersion: 2
     m_Bits: 64
 --- !u!1001 &3698851163559967122

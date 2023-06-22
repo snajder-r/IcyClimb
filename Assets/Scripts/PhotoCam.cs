@@ -1,44 +1,55 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Triggers a camera to turn on for 1 frame, in order to take a picture for a render texture
+/// </summary>
 public class PhotoCam : MonoBehaviour
 {
-    [SerializeField] Camera photoCamera;
+    [SerializeField]
+    Camera _photoCamera;
 
-    private int disableInFrames = 0;
-
+    /// <summary>
+    /// At count 2 the picture will be taken in the next update. 
+    /// At count 1 the camera will be disabled forever and this behavior also stops updating
+    /// </summary>
+    int _disableInFrames = 0;
     void Start()
     {
-        photoCamera.enabled = false;
+        _photoCamera.enabled = false;
     }
-
     private void Update()
     {
-        if(disableInFrames == 2)
+        if (_disableInFrames == 2)
         {
-            disableInFrames--;
-        }else if(disableInFrames == 1)
+            _disableInFrames--;
+        }
+        else if (_disableInFrames == 1)
         {
             DisableForever();
         }
     }
-
     private void OnTriggerEnter(Collider other)
     {
-        Invoke("TakePicture", 0.5f);
+        // Take a picture when the trigger entered
+        Invoke(nameof(TakePicture), 0.5f);
     }
 
-    void TakePicture()
+    /// <summary>
+    /// Enable the camera and set the "countdown" for when it should be disabled
+    /// </summary>
+    private void TakePicture()
     {
-        photoCamera.enabled = true;
-        // Make sure we have least 1 frame where the pic is taken
-        disableInFrames = 2;
+        _photoCamera.enabled = true;
+        // Make sure we have least 1 frame where the pic is taken.
+        _disableInFrames = 2;
     }
 
-    void DisableForever()
+    /// <summary>
+    /// Disables both the camera object as well as this entire gameobject so that this will never be executed again
+    /// </summary>
+    private void DisableForever()
     {
-        photoCamera.enabled = false;
+        _photoCamera.enabled = false;
         gameObject.SetActive(false);
     }
 }

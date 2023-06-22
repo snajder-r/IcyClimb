@@ -1,36 +1,42 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
+/// <summary>
+/// This SlopeScanner can help detect how even the floor below the player is and decides whether the player should be able
+/// to walk or might slip and fall.
+/// </summary>
 public class SlopeScanner : MonoBehaviour
 {
     // Raycastings used to determine whether we should fall
     Vector3[] fallRays;
 
-    [SerializeField]
-    int numberOfRays;
+    [SerializeField, Tooltip("Number of raycasts which should be performed in a circle around this object")]
+    int _numberOfRays;
+
+    [SerializeField, Tooltip("Which layers should be considered a floor")]
+    LayerMask _floorLayerMask;
+
+    [SerializeField, Tooltip("Which transform we should follow to determine the y-coordinate of the scan. This is important so taller people don't fall just because they are taller than the rays are long.")]
+    Transform _yTransform;
+
+    [SerializeField, Tooltip("A lower angle means that the player is more likely to slide down a slope. The angle is represented in degrees.")]
+    float _floorAngleSlipping = 95f;
+
+    [SerializeField, Tooltip("The angle at which rays are being fired towards the floor. 90 would be shooting rays sideways (not a good idea) and 0 would mean all rays are shot in the same direction straight down.")] 
+    float _angle;
 
     [SerializeField]
-    LayerMask floorLayerMask;
+    float _rayLength;
 
-    [SerializeField]
-    Transform yTransform;
-
-    [SerializeField]
-    float floorAngleSlipping = 95f;
-
-    [SerializeField] 
-    float angle;
-
-    [SerializeField]
-    float rayLength;
-
-    [ShowOnly][SerializeField] Vector3 lastScannedNormal;
-    [ShowOnly] [SerializeField] float lastScannedAngle;
+    [SerializeField, ShowOnly] 
+    Vector3 _lastScannedNormal;
+    [SerializeField, ShowOnly] 
+    float _lastScannedAngle;
 
     void Update()
     {
-        transform.position = new Vector3(transform.position.x, yTransform.position.y + 0.1f, transform.position.z);
+        transform.position = new Vector3(transform.position.x, _yTransform.position.y + 0.1f, transform.position.z);
     }
 
     /// <param name="floorNormal">
@@ -47,19 +53,18 @@ public class SlopeScanner : MonoBehaviour
         Vector3 normalSum = Vector3.zero;
         foreach (Vector3 offset in fallRays)
         {
-            RaycastHit hit;
             Vector3 normal = -Vector3.up;
-            if (Physics.Raycast(transform.position, offset, out hit, rayLength, floorLayerMask))
+            if (Physics.Raycast(transform.position, offset, out RaycastHit hit, _rayLength, _floorLayerMask))
             {
                 normal = hit.normal;
             }
             normalSum += normal;
         }
         floorNormal = normalSum / fallRays.Length;
-        lastScannedNormal = floorNormal;
+        _lastScannedNormal = floorNormal;
         float floorAngle = Vector3.Dot(floorNormal, Vector3.up);
-        lastScannedAngle = Mathf.Acos(floorAngle) * Mathf.Rad2Deg;
-        return Mathf.Acos(floorAngle) * Mathf.Rad2Deg <= floorAngleSlipping;
+        _lastScannedAngle = Mathf.Acos(floorAngle) * Mathf.Rad2Deg;
+        return Mathf.Acos(floorAngle) * Mathf.Rad2Deg <= _floorAngleSlipping;
     }
 
     void Start()
@@ -69,11 +74,11 @@ public class SlopeScanner : MonoBehaviour
 
     void SetUpFallRays()
     {
-        float stepDegrees = 360f / numberOfRays;
-        List<Vector3> rays = new List<Vector3>();
+        float stepDegrees = 360f / _numberOfRays;
+        List<Vector3> rays = new();
         Quaternion rotation = Quaternion.AngleAxis(stepDegrees, Vector3.up);
         //Start with one ray, and then rotate it around the y axis to create a higher resolution scan
-        Vector3 direction = Quaternion.AngleAxis(angle, Vector3.forward) * (-Vector3.up);
+        Vector3 direction = Quaternion.AngleAxis(_angle, Vector3.forward) * (-Vector3.up);
         rays.Add(direction);
         for (int i = 1; i < 360f / stepDegrees; i++)
         {

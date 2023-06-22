@@ -1,38 +1,51 @@
-using System.Collections;
-using System.Collections.Generic;
+using UnityEngine.Serialization;
 using UnityEngine;
 using UnityEngine.Rendering;
 
+/// <summary>
+/// Behavior used to detect whether a component object is visible from the main camera.
+/// If not, it will be made invisible. 
+/// In the current implementation, component types need to be hardcoded, since not every
+/// component has the "enabled" field. Check below to see which are currently supported
+/// </summary>
 public class RayTraceOcclusion : MonoBehaviour
 {
-    [SerializeField] Component componentToHide;
-    [SerializeField] Transform mainCamera;
-    [SerializeField] float minDistance;
-    [SerializeField] LayerMask wallMask;
+    [SerializeField] Component _componentToHide;
+    [SerializeField] Transform _mainCamera;
+    [SerializeField] float _minDistance;
+    [SerializeField] LayerMask _wallMask;
 
+    /// <summary>
+    /// Check if the object is occluded, by sending a raycast from the camera to the object
+    /// </summary>
+    /// <returns>true if the raycast hit a wall before reaching the object</returns>
     bool IsOccluded()
     {
-        Vector3 offset = transform.position - mainCamera.position;
-        if (offset.magnitude > minDistance)
+        Vector3 offset = transform.position - _mainCamera.position;
+        if (offset.magnitude > _minDistance)
         {
             return true;
         }
-        bool hit = Physics.Raycast(mainCamera.position, offset.normalized, offset.magnitude, wallMask);
+        bool hit = Physics.Raycast(_mainCamera.position, offset.normalized, offset.magnitude, _wallMask);
         return hit;
     }
 
-    // Update is called once per frame
     void Update()
     {
+        if(!_componentToHide)
+        {
+            Debug.LogError("No component provided for " + GetType());
+            return;
+        }
+
         bool occluded = IsOccluded();
-        if(componentToHide is LensFlareComponentSRP)
+
+        // Occlude if the component is of a supported type
+        switch (_componentToHide)
         {
-            ((LensFlareComponentSRP)componentToHide).enabled = !occluded;
-        }else if (componentToHide is Renderer)
-        {
-            ((Renderer)componentToHide).enabled = !occluded;
+            case LensFlareComponentSRP flare: flare.enabled = !occluded; break;
+            case Renderer renderer: renderer.enabled = !occluded; break;
+            default: Debug.LogError("Component type " + _componentToHide.GetType() + " not supported by " + GetType()); break;
         }
     }
-
-    
 }

@@ -1,58 +1,82 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
 
+/// <summary>
+/// A wall anchor that can hold a chain link in order to secure the climber
+/// </summary>
 public class WallAnchor : LodgeAbleGrabbable, IWallTriggerCollider
 {
-    [SerializeField] Transform ropeAttachPoint;
-    [SerializeField] AudioClip lodgeSound;
-    [SerializeField] AudioClip dislodgeSound;
+    [SerializeField]
+    Transform _ropeAttachPoint;
+    [SerializeField]
+    AudioClip _lodgeSound;
+    [SerializeField]
+    AudioClip _dislodgeSound;
 
-    Rope rope;
+    Rope _rope;
+    AudioSource _audioSource;
 
-    public ChainLink link { get; private set; }
+    public ChainLink _link { get; private set; }
 
-    public override Vector3 GetPull() => Vector3.zero;
-
-    public override bool IsSecured() => false;
-
-    private AudioSource audioSource;
+    public override bool IsSecured { get => false; }
 
     void Start()
     {
-        rope = Rope.instance;
-        remainsLodgedIfReleased = true;
-        audioSource = GetComponent<AudioSource>();
+        _rope = Rope.instance;
+        _remainsLodgedIfReleased = true;
+        _audioSource = GetComponent<AudioSource>();
     }
 
     public void OnWallCollisionEnter(Collider cliff)
     {
         // It can only be lodged by hand
-        if (heldController == null) return;
+        if (_heldController == null) return;
         if (Lodge())
         {
             PlayLodgeSound();
         }
     }
 
-    private void PlayLodgeSound()
+    public void OnTriggerEnter(Collider other)
     {
-        audioSource.PlayOneShot(lodgeSound);
-    }
+        // Only do something if we are in a wall
+        if (!IsLodged) return;
 
-    private void PlayDisLodgeSound()
-    {
-        audioSource.PlayOneShot(dislodgeSound);
+        // If we already have a link attached, ignore the trigger
+        if (_link) return;
+
+        // Get the manipulator that has been used to move the link towards us.
+        RopeManipulation manipulator = other.GetComponent<RopeManipulation>();
+        // This also ensures that we don't just catch the rope by chance
+        if (!manipulator) return;
+
+        // Only a manipulator that is selected (held in hand) should trigger me
+        if (!manipulator.isSelected) return;
+
+        // Get the link which the player is trying to attach to us
+        _link = manipulator.ManipulatorChainLink;
+        if (!_link) return;
+
+        // Inform the rope manipulator that we will take responsibility for this chain link
+        manipulator.OnRopeAttached();
+        // Take over parenthood
+        _link.transform.parent = transform;
+
+        ChainLink insertPoint = manipulator.GetChainLinkToPrependNewWallAnchors();
+        insertPoint.InsertBefore(_link);
+        _link.gameObject.SetActive(true);
+
+        _link.transform.position = _ropeAttachPoint.position;
+
+        //Tell the player that we are secured
+        _rope.WallAnchorSecured(this);
     }
 
     public override bool Dislodge()
     {
-        if(link is not null)
+        if (_link is not null)
         {
             // We currently have a rope attached
-            if (rope.IsWallAnchorLastInChain(this))
+            if (_rope.IsWallAnchorLastInChain(this))
             {
                 // We are allowed to disconnect the rope
                 DisconnectRope();
@@ -73,48 +97,22 @@ public class WallAnchor : LodgeAbleGrabbable, IWallTriggerCollider
 
     public void DisconnectRope()
     {
-        rope.WallAnchorRemoved(this);
-        link.DisconnectSelf();
-        Destroy(link.gameObject);
-        link = null;
+        _rope.WallAnchorRemoved(this);
+        _link.DisconnectSelf();
+        Destroy(_link.gameObject);
+        _link = null;
+    }
+    public override Vector3 Pull() => Vector3.zero;
+
+    private void PlayLodgeSound()
+    {
+        _audioSource.PlayOneShot(_lodgeSound);
     }
 
-    public void OnTriggerEnter(Collider other)
+    private void PlayDisLodgeSound()
     {
-        // Only do something if we are in a wall
-        if (!isLodged) return;
-
-        // If we already have a link attached, ignore the trigger
-        if (link) return;
-
-        // Get the manipulator that has been used to move the link towards us.
-        RopeManipulation manipulator = other.GetComponent<RopeManipulation>();
-        // This also ensures that we don't just catch the rope by chance
-        if (!manipulator) return;
-
-        // Only a manipulator that is selected (held in hand) should trigger me
-        if (!manipulator.isSelected) return;
-
-        // Get the link which the player is trying to attach to us
-        link = manipulator.ManipulatorChainLink;
-        if (!link) return;
-
-        // Inform the rope manipulator that we will take responsibility for this chain link
-        manipulator.OnRopeAttached();
-        // Take over parenthood
-        link.transform.parent = transform;
-
-        ChainLink insertPoint = manipulator.GetChainLinkToPrependNewWallAnchors();
-        insertPoint.InsertBefore(link);
-        link.gameObject.SetActive(true);
-        
-        link.transform.position = ropeAttachPoint.position;
-
-        //Tell the player that we are secured
-        rope.WallAnchorSecured(this);
+        _audioSource.PlayOneShot(_dislodgeSound);
     }
 
     
-
-
 }

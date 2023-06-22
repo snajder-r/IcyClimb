@@ -122,7 +122,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca5b93a89782b154ca500a202ea37d39, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  defaultColor: {r: 0.01, g: 0.0054545454, b: 0.0018181818, a: 0}
+  _defaultColor: {r: 0, g: 0, b: 0, a: 0}
 --- !u!1 &3105083355638957794
 GameObject:
   m_ObjectHideFlags: 0
@@ -182,4 +182,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08c6cbaa590cf424c8ef20d2caf8466c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  photoCamera: {fileID: 3105083354752343620}
+  _photoCamera: {fileID: 3105083354752343620}
