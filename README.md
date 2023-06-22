@@ -1,5 +1,7 @@
 # IcyClimb
 
+![Banner](Assets/Logos/heroBanner.png)
+
 This mini-game is my first practice VR project.
 
 ## Attributions
