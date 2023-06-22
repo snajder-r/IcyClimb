@@ -2,7 +2,7 @@
 
 ![Banner](Assets/Logos/heroBanner.png)
 
-This mini-game is my first practice VR project.
+IcyClimb is my first mini-project with Unity. Ascend an icy wall using your trusty ice picks and lead climbing.
 
 ## Attributions
 
@@ -10,60 +10,80 @@ This project exclusively uses free assets, either from the Unity store or throug
 
 The following content is used in this project:
 
-* 'Permafrost' by Scott Buckley - released under CC-BY 4.0. www.scottbuckley.com.au
+* 'Permafrost' by Scott Buckley - released under CC-BY 4.0. [www.scottbuckley.com.au](www.scottbuckley.com.au)
+* Wind loop and water Loop from: Nature Sound FX by Lumino [Asset Store](https://assetstore.unity.com/packages/audio/sound-fx/nature-sound-fx-180413) | [Publisher Website](https://luminoassets.com/)
+* Snow footsteps sound effects from: Footstep(Snow and Grass) by MGWSoundDesign [Asset Store](https://assetstore.unity.com/packages/audio/sound-fx/footstep-snow-and-grass-90678) | [Publisher Website](https://soundcloud.com/valery-oleynikov)
+* Slipping sound effect from: Footsteps Gravel by Sound Works 12 [Asset Store](https://assetstore.unity.com/packages/audio/sound-fx/foley/footsteps-gravel-175348) | [Publisher Website](https://soundcloud.com/udk62msvdvkx)
+* IceAxe by RRFreelance: [Asset Store](https://assetstore.unity.com/packages/3d/props/tools/ice-axe-20492#reviews) | [Publisher Website](https://www.robertramsay.co.uk/)
+* Simple Water Shader URP by IgniteCoders: [Asset Store](https://assetstore.unity.com/packages/2d/textures-materials/water/simple-water-shader-urp-191449) | [Publisher Website](https://github.com/IgniteCoders)
+* Yughues Free Sand Materials by Nobiax / Yughues: [Asset Store](https://assetstore.unity.com/packages/2d/textures-materials/floors/yughues-free-sand-materials-12964) | [Publisher Website](https://www.artstation.com/yughues)
+
 
 ## Development log
 
+Below find some select highlights of elements that went into the development of IcyClimb.
+
+### 3D Modeling
+
+The cliff was modeled in Blender. It was first prototyped using metaballs, then converted to a mesh and details added using sculpting tools. 
+A texture was generated procedurally using a shader consisting of about 40 nodes and then baked into a 12,288x12,888 texture and normals, as well as a 8192x8192 metallic map (baked from glossy).
+The procedural shader was heavily inspired by [this Blender tutorial by YouTuber polygonartist.](https://www.youtube.com/watch?v=0Eg0uZDEktk).
+
+In Unity, the texture is further complemented with a detail Texure from Yughues Free Sand Materials Asset pack.
+
+![Modeling the cliff](DevLog/cliffblender.png)
+
+Other objects I modeled in Blender were the wall anchors, the belay device, and the hands.
+The hands were painted with two different materials, one using a procedural shader to create the knobbed texture of the palm grips, and the black texture mostly painted manually. 
+
+![Other models created in Blender](DevLog/blender_other.png)
+
+### Animation
+
+The only animation I created for IcyClimb is that of closing your hand to grip something. 
+Since I had never done this before, I learned from [CGDive's Blender tutorials on YouTube](https://www.youtube.com/watch?v=hdGkKbtQxE0).
+
+I rigged the hand with a game rig and a control rig, and created two poses: 1) natural and 2) grabbing. 
+The animation controller was kept simple.
+A single bool parameter `b_grab` controls transitions. 
+It can transition to the Grab state from any state except itself (that is, from Idle or Ungrab if `b_grab` is true. 
+Only if `b_grab` is false, can it transition from Grab to Ungrab, which plays the grab animation in reverse From any state except the grab state (disallo) whether the animation controller transition.
+
+![Rigging and animating the hand](DevLog/hand_animation.png)
+
+### Sound design
+
+Two ambient sound loops are used from the Nature Sound FX by Lumino from the Unity Asset store:
+At the bottom of the cliff a spatial audio source plays the Water sound effect representing the sea, while at the top another spatial audio source plays the Wind loop. 
+This way, as you ascend the cliff, the water becomes quieter and the wind becomes stronger.
+
+As the player approaches about 80\% of the cliff's height. Permafrost by Scott Buckley is played and the credits appear over the horizon. You can probably guess that this was inspired by Kojima Productions' Death Stranding. 
+
+A number of sound effects were taken from free Unity Assets from the Asset Store (see the Attributions section at the top of this page). 
+These include:
+* A random snow footstep sound whenever the player moves 0.75m
+* A gravel footstep sound whenever the player loses solid ground (slips off a slope)
+
+A few sound effects in the game are **home-made**, recorded with my regular Antlion ModMic (no professional audio equipment) and edited in Audacity:
+* 6 different ice sound effects for when the ice pick or wall anchor lodged into ice: [1](Assets/Audio/SFX/ice1.wav)  [2](Assets/Audio/SFX/ice2.wav) [3](Assets/Audio/SFX/ice3.wav) [4](Assets/Audio/SFX/ice4.wav) [5](Assets/Audio/SFX/ice5.wav) [6](Assets/Audio/SFX/ice6.wav)     
+What it is: Me smashing ice cubes with a stone mortar and pestle.
+* 1 hand slipping sound played when you run out of stamina and thus lose your grip: [1](Assets/Audio/SFX/handslip1.wav)     
+What it is: Me grabbing my Shinai and pulling on the Tsukagawa until I lose my grip and it slips out of my hand.
+* 1 dislodge sound played when you dislodge the ice pick or the wall anchor from the ice: [1](Assets/Audio/SFX/dislodge1.wav)    
+What it is: Me pulling a kitchen knife out of some ice cubes
+* 1 wind-in-ear sound which is played when you fall very fast: [1](Assets/Audio/SFX/WindInEarLoop.wav)     
+What it is: This is just be blowing into the microphone. Aside from general pitch/speed adjustments, I also looped it by copying the sound and reversing the copy, thus creating a smooth loop.
+
 ### Locomotion
 
-* When the IcePick hits the wall, I freeze the IcePick's RigidBody. I then compute for each IcePick the distance between the Attach point and the controller location. This is the "pull" exacted on the body. I then pull the body towards the picks. If both picks are lodged in the wall, I take the average pull.
-* In order to make the pull smoother and feel like an effort, the pull is then normalized and multiplied with a fixed pull speed.
+### Blindfold shader
 
-### Collision
-* Using a Character Controller for player collision with floor and meshes, combined with the XR Character controller driver.
-It's acting a bit weird, though, and climbs up on meshes. I haven't found a decent solution yet, other than to make the collider narrow enough that the curvature of the capsule is steep.
-It's also important to make sure the Player Controller collider interacts only with walls and floor and nothing else, otherwise it can glitch out.
-* I wrote a shader to blindfold the player if they try to push their had through a wall. Unfortunately it seems to me Camera Overlay UI canvasas don't support transparency, which forces me to use World Space UI. 
-When this clips with meshes it sometimes makes it so that the player can see through meshes still, or see the edge of meshes. Something to fix...
-I wrote a script "NoWallhack" which detects collision between the Camera's near clipping plane and blacks out the screen if it clips with a wall. 
-It also takes into account the direction of the collision, using Physics.ComputePenetration to estimate where the collision occurs and how deep in we are.
-The shader takes these as input and adjusts the blindfold accordingly. Thus, if I step into the wall with my right side, I can still see on the left side.
-* The IcePick contains a trigger collider at the tip. This is so that the collision is allowed to partially penetrate the ice. When the wall gets triggered, it calls a listener on the IcePick.
-The IcePick then freezes its own rigidbody so it gets "stuck" which then allows locomotion. If the player presses the trigger, they can free the IcePick.
-  * A complication I am facing here is when I should consider the collision to occur. I tried to make it based on velocity, but I'm facing the problem that sometimes even fast movements seem to result in low velocity at the time the trigger is called. 
-    Vice versa I have the problem that sometimes "grinding" the pick against the wall results in fast involuntary collision which is then accepted as a hit but shouldn't. 
-	I tried also checking the angle of the motion, using the RigidBodys GetPointVelocity function and by computing its dot product with the Ice Pick tip's position. It didn't help, though.. Not sure how to improve it so that it registers if and only if the player inteded it.
-  * I attempted two things to fix it, which improved it somewhat, but not greatly: 
-    One is smoothing the velocity over the last 10 frames before computing the direction of movement. 
-	The other is sending a raycast from the IcePickTip to the wall and checking the wall normal. If it deviates more than 45 degrees from the Tip forward we don't register the hit. 
+### Rope physics
 
-### Ambiance
-* Added some ocean sound affects at the bottom and wind sound affects at the top, turned on spatial blend and added ONSP Audio source from the native oculus spatializer. 
-Thus, the higher you climb, the more you get wind sounds and less ocean sounds.
-* When you reach a certain height (currently 80 meters) a song from Scott Buckley starts playing. It only plays once and doesn't loop. This is of course inspired by the Kojima Productions game Death Stranding :-)
+### Photospheres
 
-### Cliff design
+### Visual effects
 
-* Started by designing the first cliff "level" in Inkscape with a possible solution of where the player might place climbing anchors.
-* Based on that design I created a cliff mesh in blender using Metaballs. 
-* For the texture I first created a shader graph in Blender and exported the baked textures. However, even with 8192x8192 textures this looked blurry since it's a large 100m tall cliff.
-* I then changed the strategy and instead created a shader graph in unity so that the texture can be computed in unity. It doesn't look as good as what I produced in Blender, but it will do.
+### Coding conventions
 
-### Terrain setup
-
-* Used a free unity asset "Snowy Cliff Materials" and set up a basic terrain.
-* The inner terrain has higher quality and a second outer terrain with very low resolution was built to avoid seeing the void
-* I set up a new procedural skybox using unity's Procedural Skybox shader
-* Performance evaluation: I had about 170k Tris and over 240 draw calls. This was shocking seeing how little was on screen. 
-What greatly helped was reducing the Terrain quality. Specifically raising the outer terrain Pixel error to the max improved draw calls significantly.
-Enabling "Draw Instanced" also helped reduce the draw calls! I now have around 100k Tris and 200 draw calls. 
-* Baked global illumination and tested on the Quest 2. Aside from what looks like some screen tares it looks good.
-* Decided to switch to a different terrain on the beach. This eliminates having to draw mountains on side of the horizon. Using a free water shader from the unity store.
-
-### Initial setup
-* Unity 3D URP project with the following packages:
-  * OpenXR and XR Interaction toolkit with samples and simulator
-  * Native oculus spatializer
-  * Did NOT install the Mixed Reality features. I want to see if I need them at all.
-* Two builds: High quality for PC and Balanced for Android (targeting Oculus Quest 2)
-* Fixed timestep set for 72Hz (0.0138)
+Coding conventions with regards to variable naming and class organization follow the propositions published by https://github.com/justinwasilenko/Unity-Style-Guide
