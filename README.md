@@ -49,7 +49,8 @@ I rigged the hand with a game rig and a control rig, and created two poses: 1) n
 The animation controller was kept simple.
 A single bool parameter `b_grab` controls transitions. 
 It can transition to the Grab state from any state except itself (that is, from Idle or Ungrab if `b_grab` is true. 
-Only if `b_grab` is false, can it transition from Grab to Ungrab, which plays the grab animation in reverse From any state except the grab state (disallo) whether the animation controller transition.
+Only if `b_grab` is false, can it transition from Grab to Ungrab, which plays the grab animation in reverse.
+From any state except the grab state (disallow self transition) to transition back to the grab state. This avoids a looping grab animation.
 
 ![Rigging and animating the hand](DevLog/hand_animation.png)
 
