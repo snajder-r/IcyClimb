@@ -13,7 +13,7 @@ This project exclusively uses free assets, either from the Unity store or throug
 The following content is used in this project:
 
 * 'Permafrost' by Scott Buckley - released under CC-BY 4.0. [www.scottbuckley.com.au](www.scottbuckley.com.au)
-* Wind loop and water Loop from: Nature Sound FX by Lumino [Asset Store](https://assetstore.unity.com/packages/audio/sound-fx/nature-sound-fx-180413) | [Publisher Website](https://luminoassets.com/)
+* Wind loop and water loop from: Nature Sound FX by Lumino [Asset Store](https://assetstore.unity.com/packages/audio/sound-fx/nature-sound-fx-180413) | [Publisher Website](https://luminoassets.com/)
 * Snow footsteps sound effects from: Footstep(Snow and Grass) by MGWSoundDesign [Asset Store](https://assetstore.unity.com/packages/audio/sound-fx/footstep-snow-and-grass-90678) | [Publisher Website](https://soundcloud.com/valery-oleynikov)
 * Slipping sound effect from: Footsteps Gravel by Sound Works 12 [Asset Store](https://assetstore.unity.com/packages/audio/sound-fx/foley/footsteps-gravel-175348) | [Publisher Website](https://soundcloud.com/udk62msvdvkx)
 * IceAxe by RRFreelance: [Asset Store](https://assetstore.unity.com/packages/3d/props/tools/ice-axe-20492#reviews) | [Publisher Website](https://www.robertramsay.co.uk/)
